@@ -286,7 +286,7 @@ void ripemd160(const uint8_t *msg, int msglen, uint8_t digest[20])
 #error "untested; suspect endian challenge here"
 #endif
 
-    if(((uint32_t)digest) & 0x3) {
+    if(((size_t)digest) & 0x3) {
         // unaligned case
         uint32_t    ctx[5];
 
