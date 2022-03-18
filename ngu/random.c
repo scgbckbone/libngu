@@ -32,7 +32,7 @@ extern uint32_t rng_get(void);
 
 #ifdef UNIX
 # define CHIP_TRNG_SETUP()      
-# define CHIP_TRNG_32()         arc4random()
+# define CHIP_TRNG_32()         random()
 #endif
 
 #ifndef CHIP_TRNG_SETUP
