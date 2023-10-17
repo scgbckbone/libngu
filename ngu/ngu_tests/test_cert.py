@@ -64,13 +64,12 @@ bhb/2wol/McYrMp4IYoUxJo=
 -----END CERTIFICATE-----
 '''
 
-
 import ngu
 c = ngu.cert.x509()
 c.parse(unit_cert)
 #print(repr(c))
 assert 'Opendime' in repr(c)
-assert 'serialNumber=PEXEVEKLGRIFCICKJIYBCHQC74+cd229fbd8405' in repr(c)
+assert 'serialNumber=PEXEVEKLGRIFCICKJIYBCHQC74\+cd229fbd8405' in repr(c)
 pubkey = c.get_ec_pubkey()
 assert pubkey[0] == 4 and len(pubkey) == 65
 
@@ -88,6 +87,4 @@ try:
     print(em.get_ec_pubkey())
 except ValueError:
     pass
-
-
 print('PASS - test_cert')

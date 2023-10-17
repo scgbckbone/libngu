@@ -1,9 +1,13 @@
+import os
+
+if os.environ.get('BOARD', "") == 'ESP32_GENERIC_S3':
+    include("$(PORT_DIR)/boards/manifest.py")
+
 freeze_as_mpy('', [
     'bip39.py',
 ], opt=3)
 
-import os
-if not os.environ.get('EXCLUDE_NGU_TESTS', False):
+if not int(os.environ.get('EXCLUDE_NGU_TESTS', 0)):
     print("NGU: including tests")
     freeze_as_mpy('', [
         "ngu_tests/run.py",

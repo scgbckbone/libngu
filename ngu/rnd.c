@@ -13,10 +13,13 @@
 #include "my_assert.h"
 
 // ESP32 code
-#ifdef ESP_PLATFORM
-# include "esp_system.h"
-# define CHIP_TRNG_SETUP()      
-# define CHIP_TRNG_32()         esp_random()
+#if defined(MICROPY_ESP_IDF_4) || defined(ESP_PLATFORM)
+#include "esp_random.h"
+#include "esp_mac.h"
+#include "esp_chip_info.h"
+#include "esp_system.h"
+#define CHIP_TRNG_SETUP()
+#define CHIP_TRNG_32()         esp_random()
 #endif
 
 #ifdef MICROPY_PY_STM
@@ -154,7 +157,7 @@ STATIC mp_obj_t random_bytes(mp_obj_t count_in)
 
     my_random_bytes((uint8_t *)rv.buf, count);
 
-    return mp_obj_new_str_from_vstr(&mp_type_bytes, &rv);
+    return mp_obj_new_bytes((uint8_t *)rv.buf, count);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(random_bytes_obj, random_bytes);
 
@@ -179,7 +182,7 @@ STATIC const mp_rom_map_elem_t globals_table[] = {
 
 STATIC MP_DEFINE_CONST_DICT(globals_table_obj, globals_table);
 
-const mp_obj_module_t mp_module_random = {
+const mp_obj_module_t mp_module_rnd = {
     .base = { &mp_type_module },
     .globals = (mp_obj_dict_t *)&globals_table_obj,
 };

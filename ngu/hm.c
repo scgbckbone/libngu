@@ -75,7 +75,7 @@ STATIC mp_obj_t hmac_X(int md_size, mp_obj_t key_in, mp_obj_t msg_in)
     cf_hmac(key.buf, key.len, msg.buf, msg.len, (uint8_t*)rv_out.buf, algo);
 #endif
 
-    return mp_obj_new_str_from_vstr(&mp_type_bytes, &rv_out);
+    return mp_obj_new_bytes((uint8_t*)rv_out.buf, md_size);
 }
 
 STATIC mp_obj_t hmac_sha512(mp_obj_t key_in, mp_obj_t msg_in)

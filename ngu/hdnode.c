@@ -133,15 +133,10 @@ STATIC mp_obj_t s_hdnode_privkey(mp_obj_t self_in) {
     mp_obj_hdnode_t *self = MP_OBJ_TO_PTR(self_in);
     raise_on_invalid(self);
 
-    vstr_t vstr;
-    vstr_init_len(&vstr, 32);
-
     if(!self->have_private) {
         mp_raise_ValueError(MP_ERROR_TEXT("no privkey"));
     }
-    memcpy(vstr.buf, self->privkey, 32);
-
-    return mp_obj_new_str_from_vstr(&mp_type_bytes, &vstr);
+    return mp_obj_new_bytes(self->privkey, 32);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(s_hdnode_privkey_obj, s_hdnode_privkey);
 
@@ -149,14 +144,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_1(s_hdnode_privkey_obj, s_hdnode_privkey);
 STATIC mp_obj_t s_hdnode_pubkey(mp_obj_t self_in) {
     mp_obj_hdnode_t *self = MP_OBJ_TO_PTR(self_in);
     raise_on_invalid(self);
-
-    vstr_t vstr;
-    vstr_init_len(&vstr, 33);
-
-    // 33 bytes of pubkey
-    memcpy(vstr.buf, self->pubkey, sizeof(self->pubkey));
-
-    return mp_obj_new_str_from_vstr(&mp_type_bytes, &vstr);
+    return mp_obj_new_bytes(self->pubkey, 33);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(s_hdnode_pubkey_obj, s_hdnode_pubkey);
 
@@ -499,12 +487,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_1(s_hdnode_child_number_obj, s_hdnode_child_numbe
 STATIC mp_obj_t s_hdnode_chain_code(mp_obj_t self_in) {
     mp_obj_hdnode_t *self = MP_OBJ_TO_PTR(self_in);
     raise_on_invalid(self);
-
-    vstr_t vstr;
-    vstr_init_len(&vstr, 32);
-    memcpy(vstr.buf, self->chain_code, 32);
-
-    return mp_obj_new_str_from_vstr(&mp_type_bytes, &vstr);
+    return mp_obj_new_bytes(self->chain_code, 32);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(s_hdnode_chain_code_obj, s_hdnode_chain_code);
 
@@ -555,15 +538,16 @@ STATIC const mp_rom_map_elem_t s_hdnode_locals_dict_table[] = {
 STATIC MP_DEFINE_CONST_DICT(s_hdnode_locals_dict, s_hdnode_locals_dict_table);
 
 // class: HDNode
-STATIC const mp_obj_type_t s_hdnode_type = {
-    { &mp_type_type },
-    .name = MP_QSTR_HDNode,
-    .make_new = s_hdnode_make_new,
+STATIC MP_DEFINE_CONST_OBJ_TYPE(
+    s_hdnode_type,
+    MP_QSTR_HDNode,
+    MP_TYPE_FLAG_NONE,
 #ifdef EXTRA_DEBUG
-    .print = s_hdnode_repr,
+    print, s_hdnode_repr,
 #endif
-    .locals_dict = (void *)&s_hdnode_locals_dict,
-};
+    make_new, s_hdnode_make_new,
+    locals_dict, &s_hdnode_locals_dict
+);
 
 STATIC const mp_rom_map_elem_t globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_hdnode) },

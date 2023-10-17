@@ -99,19 +99,18 @@ STATIC mp_obj_t s_CBC_cipher(mp_obj_t self_in, mp_obj_t buf_in)
 
     assert(self->aes_ctx.rounds);
 
-    vstr_t rv;
-    vstr_init_len(&rv, buf.len);
+    unsigned char res[buf.len];
+    size_t outlen = sizeof(res);
     if(buf.len % CF_MAXBLOCK) {        // 16
         mp_raise_ValueError(NULL);
     }
 
     if(self->is_encrypt) {
-        cf_cbc_encrypt(&self->mode_ctx, buf.buf, (uint8_t *)rv.buf, buf.len/CF_MAXBLOCK);
+        cf_cbc_encrypt(&self->mode_ctx, buf.buf, res, buf.len/CF_MAXBLOCK);
     } else {
-        cf_cbc_decrypt(&self->mode_ctx, buf.buf, (uint8_t *)rv.buf, buf.len/CF_MAXBLOCK);
+        cf_cbc_decrypt(&self->mode_ctx, buf.buf, res, buf.len/CF_MAXBLOCK);
     }
-
-    return mp_obj_new_str_from_vstr(&mp_type_bytes, &rv);
+    return mp_obj_new_bytes(res, outlen);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(s_CBC_cipher_obj, s_CBC_cipher);
 
@@ -123,13 +122,13 @@ STATIC mp_obj_t s_CTR_cipher(mp_obj_t self_in, mp_obj_t buf_in)
 
     assert(self->aes_ctx.rounds);
 
-    vstr_t rv;
-    vstr_init_len(&rv, buf.len);
+    unsigned char res[buf.len];
+    size_t outlen = sizeof(res);
 
     // any size i/o works
-    cf_ctr_cipher(&self->mode_ctx, buf.buf, (uint8_t *)rv.buf, buf.len);
+    cf_ctr_cipher(&self->mode_ctx, buf.buf, res, buf.len);
 
-    return mp_obj_new_str_from_vstr(&mp_type_bytes, &rv);
+    return mp_obj_new_bytes(res, outlen);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(s_CTR_cipher_obj, s_CTR_cipher);
 
@@ -186,12 +185,13 @@ STATIC const mp_rom_map_elem_t s_CBC_locals_dict_table[] = {
 };
 STATIC MP_DEFINE_CONST_DICT(s_CBC_locals_dict, s_CBC_locals_dict_table);
 
-STATIC const mp_obj_type_t s_CBC_type = {
-    { &mp_type_type },
-    .name = MP_QSTR_CBC,
-    .make_new = s_CBC_make_new,
-    .locals_dict = (void *)&s_CBC_locals_dict,
-};
+STATIC MP_DEFINE_CONST_OBJ_TYPE(
+    s_CBC_type,
+    MP_QSTR_CBC,
+    MP_TYPE_FLAG_NONE,
+    make_new, s_CBC_make_new,
+    locals_dict, &s_CBC_locals_dict
+);
 
 STATIC const mp_rom_map_elem_t s_CTR_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR_cipher), MP_ROM_PTR(&s_CTR_cipher_obj) },
@@ -201,13 +201,13 @@ STATIC const mp_rom_map_elem_t s_CTR_locals_dict_table[] = {
 };
 STATIC MP_DEFINE_CONST_DICT(s_CTR_locals_dict, s_CTR_locals_dict_table);
 
-STATIC const mp_obj_type_t s_CTR_type = {
-    { &mp_type_type },
-    .name = MP_QSTR_CTR,
-    .make_new = s_CTR_make_new,
-    .locals_dict = (void *)&s_CTR_locals_dict,
-};
-
+STATIC MP_DEFINE_CONST_OBJ_TYPE(
+    s_CTR_type,
+    MP_QSTR_CTR,
+    MP_TYPE_FLAG_NONE,
+    make_new, s_CTR_make_new,
+    locals_dict, &s_CTR_locals_dict
+);
 
 STATIC const mp_rom_map_elem_t mp_module_aes_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_aes) },

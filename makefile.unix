@@ -4,11 +4,12 @@ export PKG_CONFIG_PATH=/usr/local/opt/libffi/lib/pkgconfig
 
 # see ./var
 MPY_MAKE_ARGS = -j 4 VARIANT=ngu VARIANT_DIR=$(realpath var) V=$(V) \
+                    CFLAGS_EXTRA="-DMBEDTLS_ECDSA_DETERMINISTIC -DMBEDTLS_HMAC_DRBG_C -DMBEDTLS_RIPEMD160_C -DMBEDTLS_ECP_DP_BP256R1_ENABLED" \
 					USER_C_MODULES=$(realpath .) NGU_TOP_DIR=$(realpath .)
 MPY_MAKE_ARGS += NGU_NEEDS_CIFRA=1
 TARGET = var/micropython
-REQUIRES = Makefile makefile.unix ngu/*.[ch] var/*
 MPY_PORT_DIR = $(MPY_TOP)/ports/unix
+REQUIRES = Makefile makefile.unix ngu/*.[ch] var/*
 
 
 include Makefile

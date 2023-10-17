@@ -1,15 +1,14 @@
 
 try:
     import ngu
-    from ubinascii import hexlify as b2a_hex
-    from ubinascii import unhexlify as a2b_hex
+
     sha512 = ngu.hash.sha512
     ripemd160 = ngu.hash.ripemd160
     double_sha256 = ngu.hash.sha256d
     sha256s = ngu.hash.sha256s
 
     def expect2(func, msg, dig):
-        assert func(msg) == a2b_hex(dig), [func(msg), a2b_hex(dig)]
+        assert func(msg) == bytes.fromhex(dig), (msg,dig)
 
 
     import uctypes
@@ -66,13 +65,13 @@ except ImportError:
         print("run code now in: %s" % fd.name)
 
 def expect(func, msg, dig):
-    assert str(b2a_hex(func(msg).digest()), 'ascii') == dig
+    assert func(msg).digest().hex() == dig
 
     for sz in range(1, max(99, len(msg))):
         md = func()
         for pos in range(0, len(msg), sz):
             md.update(msg[pos:pos+sz])
-        assert str(b2a_hex(md.digest()), 'ascii') == dig
+        assert md.digest().hex() == dig
 
 
 
