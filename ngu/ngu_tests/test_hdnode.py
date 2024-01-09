@@ -38,7 +38,7 @@ try:
         print("run code now in: %s" % fd.name)
 
     sys.exit(0)
-except ImportError: 
+except ImportError:
     sys.path.insert(0, '')      # bugfix
     pass
 

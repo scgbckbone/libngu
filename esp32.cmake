@@ -38,3 +38,5 @@ target_include_directories(usermod_ngu INTERFACE
 )
 
 target_link_libraries(usermod INTERFACE usermod_ngu)
+
+include(${CMAKE_CURRENT_LIST_DIR}/libs/mpy-qr/micropython.cmake)
