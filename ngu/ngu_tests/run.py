@@ -7,7 +7,8 @@ for n in list(sys.modules.keys()):
         del sys.modules[n]
 sys.path.insert(0, '')
 
-import ngu_tests.test_aes_gen
+if hasattr(ngu, 'aes'):
+    import ngu_tests.test_aes_gen
 import ngu_tests.test_hash
 import ngu_tests.test_hmac
 import ngu_tests.test_random

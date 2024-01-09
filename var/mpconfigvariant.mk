@@ -9,5 +9,3 @@ PROG = ngu-micropython
 
 MICROPY_SSL_AXTLS = 0
 MICROPY_SSL_MBEDTLS = 1
-
-

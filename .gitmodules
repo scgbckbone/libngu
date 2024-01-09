@@ -13,3 +13,6 @@
 [submodule "libs/bech32"]
 	path = libs/bech32
 	url = https://github.com/sipa/bech32.git
+[submodule "libs/mpy-qr"]
+	path = libs/mpy-qr
+	url = https://github.com/coinkite/mpy-qr.git

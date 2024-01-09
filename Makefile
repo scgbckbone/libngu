@@ -42,7 +42,7 @@ min-one-time:
 	cd $(S_TOP); ./autogen.sh && ./configure $(K1_CONF_FLAGS) && make precomp
 
 esp:
-	make -f Makefile.esp32 && make -f Makefile.esp32 deploy
+	make -f makefile.esp32 && make -f makefile.esp32 deploy
 	echo "Run: import ngu_tests.run"
 
 quick:

@@ -7,7 +7,7 @@
 // - see test_k1.py
 //
 #include "py/runtime.h"
-#include "random.h"
+#include "rnd.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -18,7 +18,7 @@
 #if MICROPY_SSL_MBEDTLS
 #include "mbedtls/sha256.h"
 #else
-#include "extmod/crypto-algorithms/sha256.h"
+#include "lib/crypto-algorithms/sha256.h"
 #endif
 
 typedef struct  {
@@ -182,8 +182,7 @@ STATIC mp_obj_t s_xonly_pubkey_make_new(const mp_obj_type_t *type, size_t n_args
 STATIC mp_obj_t s_pubkey_to_bytes(size_t n_args, const mp_obj_t *args) {
     mp_obj_pubkey_t *self = MP_OBJ_TO_PTR(args[0]);
 
-    vstr_t vstr;
-    vstr_init_len(&vstr, 66);
+    unsigned char res[66];
 
     // default: compressed, but can pass in true to get uncompressed
     bool compressed = true;
@@ -191,13 +190,12 @@ STATIC mp_obj_t s_pubkey_to_bytes(size_t n_args, const mp_obj_t *args) {
         compressed = !mp_obj_is_true(args[1]);
     }
 
-    size_t outlen = vstr.len;
-    secp256k1_ec_pubkey_serialize(secp256k1_context_static, (uint8_t *)vstr.buf, &outlen,
+    size_t outlen = sizeof(res);
+    secp256k1_ec_pubkey_serialize(secp256k1_context_static, res, &outlen,
             &self->pubkey,
             compressed ? SECP256K1_EC_COMPRESSED: SECP256K1_EC_UNCOMPRESSED );
 
-    vstr.len = outlen;
-    return mp_obj_new_str_from_vstr(&mp_type_bytes, &vstr);
+    return mp_obj_new_bytes(res, outlen);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(s_pubkey_to_bytes_obj, 1, 2, s_pubkey_to_bytes);
 
@@ -205,12 +203,11 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(s_pubkey_to_bytes_obj, 1, 2, s_pubkey
 STATIC mp_obj_t s_xonly_pubkey_to_bytes(size_t n_args, const mp_obj_t *args) {
     mp_obj_xonly_pubkey_t *self = MP_OBJ_TO_PTR(args[0]);
 
-    vstr_t vstr;
-    vstr_init_len(&vstr, 32);
+    unsigned char res[32];
 
-    secp256k1_xonly_pubkey_serialize(secp256k1_context_static, (uint8_t *)vstr.buf, &self->pubkey);
+    secp256k1_xonly_pubkey_serialize(secp256k1_context_static, res, &self->pubkey);
 
-    return mp_obj_new_str_from_vstr(&mp_type_bytes, &vstr);
+    return mp_obj_new_bytes(res, 32);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(s_xonly_pubkey_to_bytes_obj, 1, 2, s_xonly_pubkey_to_bytes);
 
@@ -263,7 +260,7 @@ STATIC mp_obj_t s_sig_to_bytes(mp_obj_t self_in) {
     // - always compressed
     vstr.buf[0] = 27 + recid + 4;
 
-    return mp_obj_new_str_from_vstr(&mp_type_bytes, &vstr);
+    return mp_obj_new_bytes((uint8_t *)vstr.buf, 65);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(s_sig_to_bytes_obj, s_sig_to_bytes);
 
@@ -373,14 +370,13 @@ STATIC mp_obj_t s_tagged_sha256(mp_obj_t tag_in, mp_obj_t msg_in) {
     mp_get_buffer_raise(tag_in, &tag, MP_BUFFER_READ);
     mp_buffer_info_t msg;
     mp_get_buffer_raise(msg_in, &msg, MP_BUFFER_READ);
-    vstr_t rv;
-    vstr_init_len(&rv, 32);
+    unsigned char res[32];
 
-    int ok = secp256k1_tagged_sha256(lib_ctx, (uint8_t *)rv.buf, tag.buf, tag.len, msg.buf, msg.len);
+    int ok = secp256k1_tagged_sha256(lib_ctx, res, tag.buf, tag.len, msg.buf, msg.len);
     if (ok != 1) {
         mp_raise_ValueError(MP_ERROR_TEXT("secp256k1_tagged_sha256 invalid arguments"));
     }
-	return mp_obj_new_str_from_vstr(&mp_type_bytes, &rv);
+	return mp_obj_new_bytes(res, 32);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(s_tagged_sha256_obj, s_tagged_sha256);
 
@@ -428,7 +424,7 @@ STATIC mp_obj_t s_sign_schnorr(mp_obj_t privkey_in, mp_obj_t digest_in, mp_obj_t
         mp_raise_ValueError(MP_ERROR_TEXT("secp256k1_schnorrsig_sign"));
     }
 
-    return mp_obj_new_str_from_vstr(&mp_type_bytes, &rv);
+    return mp_obj_new_bytes((uint8_t *)rv.buf, 64);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_3(s_sign_schnorr_obj, s_sign_schnorr);
 
@@ -560,10 +556,19 @@ static int _my_ecdh_hash(unsigned char *output, const unsigned char *x32, const 
     mbedtls_sha256_context ctx;
 
     mbedtls_sha256_init(&ctx);
+#if defined(MICROPY_ESP_IDF_4) || defined(ESP_PLATFORM)
+    // newer mbedtls (3.x.x+)
+    // TODO no idea if this works (but compiles...)
+    mbedtls_sha256_starts(&ctx, 0);
+    mbedtls_sha256_update(&ctx, x32, 32);
+    mbedtls_sha256_update(&ctx, y32, 32);
+    mbedtls_sha256_finish(&ctx, output);
+#else
     mbedtls_sha256_starts_ret(&ctx, 0);
     mbedtls_sha256_update_ret(&ctx, x32, 32);
     mbedtls_sha256_update_ret(&ctx, y32, 32);
     mbedtls_sha256_finish_ret(&ctx, output);
+#endif
     mbedtls_sha256_free(&ctx);
 
 #else
@@ -601,7 +606,7 @@ STATIC mp_obj_t s_keypair_ecdh_multiply(mp_obj_t self_in, mp_obj_t other_point_i
         mp_raise_ValueError(MP_ERROR_TEXT("secp256k1_ecdh"));
     }
 
-    return mp_obj_new_str_from_vstr(&mp_type_bytes, &rv);
+    return mp_obj_new_bytes((uint8_t *)rv.buf, 32);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(s_keypair_ecdh_multiply_obj, s_keypair_ecdh_multiply);
 
@@ -613,12 +618,13 @@ STATIC const mp_rom_map_elem_t s_sig_locals_dict_table[] = {
 };
 STATIC MP_DEFINE_CONST_DICT(s_sig_locals_dict, s_sig_locals_dict_table);
 
-STATIC const mp_obj_type_t s_sig_type = {
-    { &mp_type_type },
-    .name = MP_QSTR_secp256k1_sig,
-    .make_new = s_sig_make_new,
-    .locals_dict = (void *)&s_sig_locals_dict,
-};
+STATIC MP_DEFINE_CONST_OBJ_TYPE(
+    s_sig_type,
+    MP_QSTR_secp256k1_sig,
+    MP_TYPE_FLAG_NONE,
+    make_new, s_sig_make_new,
+    locals_dict, &s_sig_locals_dict
+);
 
 
 // pubkeys and what you can do with them
@@ -634,19 +640,21 @@ STATIC const mp_rom_map_elem_t s_xonly_pubkey_locals_dict_table[] = {
 };
 STATIC MP_DEFINE_CONST_DICT(s_xonly_pubkey_locals_dict, s_xonly_pubkey_locals_dict_table);
 
-STATIC const mp_obj_type_t s_pubkey_type = {
-    { &mp_type_type },
-    .name = MP_QSTR_secp256k1_pubkey,
-    .make_new = s_pubkey_make_new,
-    .locals_dict = (void *)&s_pubkey_locals_dict,
-};
+STATIC MP_DEFINE_CONST_OBJ_TYPE(
+    s_pubkey_type,
+    MP_QSTR_secp256k1_pubkey,
+    MP_TYPE_FLAG_NONE,
+    make_new, s_pubkey_make_new,
+    locals_dict, &s_pubkey_locals_dict
+);
 
-STATIC const mp_obj_type_t s_xonly_pubkey_type = {
-    { &mp_type_type },
-    .name = MP_QSTR_secp256k1_xonly_pubkey,
-    .make_new = s_xonly_pubkey_make_new,
-    .locals_dict = (void *)&s_xonly_pubkey_locals_dict,
-};
+STATIC MP_DEFINE_CONST_OBJ_TYPE(
+    s_xonly_pubkey_type,
+    MP_QSTR_secp256k1_xonly_pubkey,
+    MP_TYPE_FLAG_NONE,
+    make_new, s_xonly_pubkey_make_new,
+    locals_dict, &s_xonly_pubkey_locals_dict
+);
 
 // privkeys and what you can do with them
 STATIC const mp_rom_map_elem_t s_keypair_locals_dict_table[] = {
@@ -658,13 +666,14 @@ STATIC const mp_rom_map_elem_t s_keypair_locals_dict_table[] = {
 };
 STATIC MP_DEFINE_CONST_DICT(s_keypair_locals_dict, s_keypair_locals_dict_table);
 
-STATIC const mp_obj_type_t s_keypair_type = {
-    { &mp_type_type },
-    .name = MP_QSTR_secp256k1_keypair,
-    .make_new = s_keypair_make_new,
-    .locals_dict = (void *)&s_keypair_locals_dict,
-};
 
+STATIC MP_DEFINE_CONST_OBJ_TYPE(
+    s_keypair_type,
+    MP_QSTR_secp256k1_keypair,
+    MP_TYPE_FLAG_NONE,
+    make_new, s_keypair_make_new,
+    locals_dict, &s_keypair_locals_dict
+);
 
 STATIC const mp_rom_map_elem_t globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_secp256k1) },

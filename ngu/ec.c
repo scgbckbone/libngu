@@ -14,6 +14,9 @@
 
 #include "mbedtls/ecp.h"
 #include "mbedtls/ecdsa.h"
+#include "mbedtls/entropy.h"
+#include "mbedtls/ctr_drbg.h"
+
 
 #ifndef MBEDTLS_ECP_C
 # error "requires MBEDTLS_ECP_C"
@@ -78,9 +81,20 @@ STATIC mp_obj_t curve_sign(mp_obj_t self_in, mp_obj_t privkey_in, mp_obj_t diges
     mbedtls_mpi_init(&r);
     mbedtls_mpi_init(&s);
 
+    // Blinding
+    char *pers = "aes generate key";
+    mbedtls_entropy_context entropy;
+    mbedtls_entropy_init( &entropy );
+
+    mbedtls_ctr_drbg_context ctr_drbg;
+    mbedtls_ctr_drbg_init(&ctr_drbg);
+
+    mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, (unsigned char *)pers, 4);
+
     CHECK_RESULT(mbedtls_mpi_read_binary(&privkey, pk_buf.buf, 32));
 
-    CHECK_RESULT(mbedtls_ecdsa_sign_det(&self->grp, &r, &s, &privkey, digest.buf, digest.len, MBEDTLS_MD_SHA256));
+    CHECK_RESULT(mbedtls_ecdsa_sign_det_ext(&self->grp, &r, &s, &privkey, digest.buf, digest.len,
+                 MBEDTLS_MD_SHA256, mbedtls_ctr_drbg_random,&ctr_drbg));
 
     mbedtls_mpi_free(&privkey);
 
@@ -95,7 +109,7 @@ STATIC mp_obj_t curve_sign(mp_obj_t self_in, mp_obj_t privkey_in, mp_obj_t diges
     mbedtls_mpi_free(&r);
     mbedtls_mpi_free(&s);
 
-    return mp_obj_new_str_from_vstr(&mp_type_bytes, &vstr);
+    return mp_obj_new_bytes(result, 64);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_3(curve_sign_obj, curve_sign);
 
@@ -165,12 +179,13 @@ STATIC const mp_rom_map_elem_t curve_locals_dict_table[] = {
 };
 STATIC MP_DEFINE_CONST_DICT(curve_locals_dict, curve_locals_dict_table);
 
-STATIC const mp_obj_type_t modngu_ec_curve_type = {
-    { &mp_type_type },
-    .name = MP_QSTR_ec_curve,
-    .make_new = curve_make_new,
-    .locals_dict = (void *)&curve_locals_dict,
-};
+STATIC MP_DEFINE_CONST_OBJ_TYPE(
+    modngu_ec_curve_type,
+    MP_QSTR_ec_curve,
+    MP_TYPE_FLAG_NONE,
+    make_new, curve_make_new,
+    locals_dict, &curve_locals_dict
+);
 
 STATIC const mp_rom_map_elem_t mp_module_ec_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_ec) },

@@ -38,7 +38,7 @@ try:
         print("run code now in: %s" % fd.name)
 
     sys.exit(0)
-except ImportError: 
+except ImportError:
     sys.path.insert(0, '')      # bugfix
     pass
 
@@ -61,6 +61,7 @@ def test_serial():
     b = HDNode()
     vo = b.deserialize(s)
     assert vo == 0x0488B21E, hex(vo)
+    print("\tPASS - test_serial")
 
 def test_b39():
     import bip39
@@ -71,6 +72,8 @@ def test_b39():
         x = HDNode()
         x.from_master(ms)
         assert x.serialize(0x0488ADE4, 1) == xprv
+
+    print("\tPASS - test_b39")
 
 def test_derive():
     a = HDNode()
@@ -91,6 +94,7 @@ def test_derive():
     c = b.copy()
     assert c != b
     assert c.pubkey() == b.pubkey()
+    print("\tPASS - test_derive")
 
 def test_misc():
     a = HDNode()
@@ -101,6 +105,7 @@ def test_misc():
     a.censor()
     assert a.serialize(0x123, 0) == b.serialize(0x123, 0)
     assert a.serialize(0x123, 1) == b.serialize(0x123, 1)
+    print("\tPASS - test_misc")
 
 def test_vectors():
 
@@ -171,6 +176,7 @@ def test_vectors():
     m.derive(0, 1)
     assert m.serialize(V_XPUB, 0) == 'xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y'
     assert m.serialize(V_XPRV, 1) == 'xprv9uPDJpEQgRQfDcW7BkF7eTya6RPxXeJCqCJGHuCJ4GiRVLzkTXBAJMu2qaMWPrS7AANYqdq6vcBcBUdJCVVFceUvJFjaPdGZ2y9WACViL4L'
+    print("\tPASS - test_vectors")
 
 def test_addrs():
     m = HDNode()
@@ -179,6 +185,7 @@ def test_addrs():
 
     assert m.addr_help(0)[0] == '1'
     assert len(m.addr_help()) == 20
+    print("\tPASS - test_addrs")
 
 test_serial()
 test_b39()
