@@ -555,6 +555,35 @@ STATIC mp_obj_t s_keypair_xonly_tweak_add(mp_obj_t self_in, mp_obj_t tweak32_in)
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(s_keypair_xonly_tweak_add_obj, s_keypair_xonly_tweak_add);
 
+STATIC mp_obj_t s_keypair_tweak_mul(mp_obj_t self_in, mp_obj_t tweak32_in) {
+//  Tweak a keypair by multiplying secret key by a tweak and updating the public
+//  key accordingly.
+    mp_buffer_info_t tweak32;
+    mp_get_buffer_raise(tweak32_in, &tweak32, MP_BUFFER_READ);
+    if(tweak32.len != 32) {
+        mp_raise_ValueError(MP_ERROR_TEXT("tweak32 len != 32"));
+    }
+    mp_obj_keypair_t *self = MP_OBJ_TO_PTR(self_in);
+//  create new tweaked object rather than updating self
+    mp_obj_keypair_t *rv = m_new_obj(mp_obj_keypair_t);
+    rv->base.type = &s_keypair_type;
+
+    sec_setup_ctx();
+    memcpy(&rv->privkey, self->privkey, 32);
+
+    int ok = secp256k1_ec_seckey_tweak_mul(lib_ctx, rv->privkey, tweak32.buf);
+    if(ok != 1) {
+        mp_raise_ValueError(MP_ERROR_TEXT("secp256k1_ec_seckey_tweak_mul invalid arguments"));
+    }
+    int key_ok = secp256k1_keypair_create(lib_ctx, &rv->keypair, rv->privkey);
+    if(key_ok != 1) {
+        mp_raise_ValueError(MP_ERROR_TEXT("secp256k1_keypair_create invalid arguments"));
+    }
+    return rv;
+
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_2(s_keypair_tweak_mul_obj, s_keypair_tweak_mul);
+
 static int _my_ecdh_hash(unsigned char *output, const unsigned char *x32, const unsigned char *y32, void *data) {
     (void)data;
 
@@ -657,6 +686,7 @@ STATIC const mp_rom_map_elem_t s_keypair_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR_pubkey), MP_ROM_PTR(&s_keypair_pubkey_obj) },
     { MP_ROM_QSTR(MP_QSTR_xonly_pubkey), MP_ROM_PTR(&s_keypair_xonly_pubkey_obj) },
     { MP_ROM_QSTR(MP_QSTR_xonly_tweak_add), MP_ROM_PTR(&s_keypair_xonly_tweak_add_obj) },
+    { MP_ROM_QSTR(MP_QSTR_tweak_mul), MP_ROM_PTR(&s_keypair_tweak_mul_obj) },
     { MP_ROM_QSTR(MP_QSTR_ecdh_multiply), MP_ROM_PTR(&s_keypair_ecdh_multiply_obj) },
 };
 STATIC MP_DEFINE_CONST_DICT(s_keypair_locals_dict, s_keypair_locals_dict_table);

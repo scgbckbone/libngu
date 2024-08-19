@@ -106,6 +106,26 @@ xo_pk = kp.xonly_pubkey()
 xo_pkt = xo_pk.tweak_add(tweak)
 assert xo_pk.to_bytes() == xo_pkt.to_bytes()
 
+# tweak mul
+kpA = ngu.secp256k1.keypair(secret)
+# two more random keys
+kpB = ngu.secp256k1.keypair()
+
+kpAB = kpA.tweak_mul(kpB.privkey())
+kpBA = kpB.tweak_mul(kpA.privkey())
+
+assert kpAB.privkey() == kpBA.privkey()
+assert kpAB.pubkey().to_bytes() == kpBA.pubkey().to_bytes()
+
+kpC = ngu.secp256k1.keypair()
+
+kpABC = kpAB.tweak_mul(kpC.privkey())
+kpCBA = kpC.tweak_mul(kpBA.privkey())
+
+assert kpAB.privkey() == kpBA.privkey()
+assert kpAB.pubkey().to_bytes() == kpBA.pubkey().to_bytes()
+
+
 # compare keypair and xonly tweaking
 for i in range(10):
     tweak = ngu.random.bytes(32)
