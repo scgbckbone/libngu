@@ -69,10 +69,6 @@ sig3 = ngu.secp256k1.signature(sig2.to_bytes()[:-1] + b'\0')
 pubkey3 = sig3.verify_recover(md)
 assert pubkey3 != pubkey
 
-assert ngu.secp256k1.tagged_sha256(b"tag", b"msg") == ngu.hash.sha256s(
-    ngu.hash.sha256s(b"tag") + ngu.hash.sha256s(b"tag") + b"msg"
-)
-
 # keypair tweaking
 kp = ngu.secp256k1.keypair()
 tweak32 = ngu.random.bytes(32)
@@ -130,7 +126,7 @@ for i in range(10):
     assert xonly_pub_clone.to_bytes() == xonly_pub_bytes
     # random msg
     msg = ngu.random.bytes(32)
-    msg_hash = ngu.secp256k1.tagged_sha256(b"ngu_tests", msg)
+    msg_hash = ngu.hash.sha256t(b"ngu_tests", msg)
     aux_rand = ngu.random.bytes(32)
     sig_kp = ngu.secp256k1.sign_schnorr(kp, msg_hash, aux_rand)
     sig_raw = ngu.secp256k1.sign_schnorr(kp.privkey(), msg_hash, aux_rand)

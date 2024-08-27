@@ -111,6 +111,41 @@ STATIC const mp_obj_type_t modngu_hash_sha512_type = {
     .locals_dict = (void *)&modngu_hash_sha512_locals_dict,
 };
 
+// Tagged sha256 = SHA256(SHA256(tag)||SHA256(tag)||msg)
+STATIC mp_obj_t hm_tagged_sha256(size_t n_args, const mp_obj_t *args) {
+    mp_obj_t tag = args[0];
+    mp_obj_t msg = args[1];
+    bool is_tag_hashed = false;
+    if(n_args > 2) {
+        is_tag_hashed = mp_obj_is_true(args[2]);
+    }
+    mp_buffer_info_t t;
+    mp_buffer_info_t m;
+    mp_get_buffer_raise(tag, &t, MP_BUFFER_READ);
+    mp_get_buffer_raise(msg, &m, MP_BUFFER_READ);
+
+    uint8_t s0[32];
+    if (is_tag_hashed) {
+        if (t.len != 32) {
+            mp_raise_ValueError(MP_ERROR_TEXT("len tag_hash != 32"));
+        }
+        memcpy(s0, t.buf, 32);
+    } else {
+        sha256_single(t.buf, t.len, s0);
+    }
+    int ser_len = 64 + m.len;
+    uint8_t ser[ser_len];
+    memcpy(ser, s0, 32);
+    memcpy(ser + 32, s0, 32);
+    memcpy(ser + 64, m.buf, m.len);
+
+    vstr_t res;
+    vstr_init_len(&res, 32);
+    sha256_single(ser, ser_len, (uint8_t *)res.buf);
+
+    return mp_obj_new_str_from_vstr(&mp_type_bytes, &res);
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(hm_tagged_sha256_obj,2,3, hm_tagged_sha256);
 
 // Double sha256 = sha256(sha256('foo').digest()).digest() ... in one step
 STATIC mp_obj_t hm_double_sha256(mp_obj_t arg) {
@@ -258,6 +293,7 @@ STATIC const mp_rom_map_elem_t mp_module_hash_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_ripemd160), MP_ROM_PTR(&hm_single_ripemd160_obj) },
     { MP_ROM_QSTR(MP_QSTR_sha256s), MP_ROM_PTR(&hm_single_sha256_obj) },
     { MP_ROM_QSTR(MP_QSTR_sha256d), MP_ROM_PTR(&hm_double_sha256_obj) },
+    { MP_ROM_QSTR(MP_QSTR_sha256t), MP_ROM_PTR(&hm_tagged_sha256_obj) },
     { MP_ROM_QSTR(MP_QSTR_hash160), MP_ROM_PTR(&hm_hash160_obj) },
     { MP_ROM_QSTR(MP_QSTR_pbkdf2_sha512), MP_ROM_PTR(&pbkdf2_sha512_obj) },
 

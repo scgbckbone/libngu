@@ -25,6 +25,20 @@ try:
     expect2(lambda x: sha512(x).digest(), abc,
             'ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f')
 
+    # test custom implementation of tagged sha256 (with midstate)
+    for tag, msg in [(b"BIP0XYZ/nonce", b"a" * 92), (b"a", b"b")]:
+        tag_hash = ngu.hash.sha256s(tag)
+        assert ngu.hash.sha256s(ngu.hash.sha256s(tag) + ngu.hash.sha256s(tag) + msg) \
+               == ngu.hash.sha256t(tag, msg) \
+               == ngu.hash.sha256t(tag_hash, msg, True)
+
+    # passing already hashed tag value - len must be 32 bytes
+    try:
+        ngu.hash.sha256t(b"a" * 20, b"a" * 96, True)
+        assert False
+    except ValueError:
+        pass
+
 except ImportError:
     import hashlib
     from binascii import b2a_hex, a2b_hex
