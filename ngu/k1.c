@@ -368,27 +368,6 @@ STATIC mp_obj_t s_verify_schnorr(mp_obj_t compact_sig_in, mp_obj_t digest_in, mp
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_3(s_verify_schnorr_obj, s_verify_schnorr);
 
-STATIC mp_obj_t s_tagged_sha256(mp_obj_t tag_in, mp_obj_t msg_in) {
-//  Compute a tagged hash as defined in BIP-340.
-//
-//  This is useful for creating a message hash and achieving domain separation
-//  through an application-specific tag. This function returns
-//  SHA256(SHA256(tag)||SHA256(tag)||msg).
-    mp_buffer_info_t tag;
-    mp_get_buffer_raise(tag_in, &tag, MP_BUFFER_READ);
-    mp_buffer_info_t msg;
-    mp_get_buffer_raise(msg_in, &msg, MP_BUFFER_READ);
-    vstr_t rv;
-    vstr_init_len(&rv, 32);
-
-    int ok = secp256k1_tagged_sha256(lib_ctx, (uint8_t *)rv.buf, tag.buf, tag.len, msg.buf, msg.len);
-    if (ok != 1) {
-        mp_raise_ValueError(MP_ERROR_TEXT("secp256k1_tagged_sha256 invalid arguments"));
-    }
-	return mp_obj_new_str_from_vstr(&mp_type_bytes, &rv);
-}
-STATIC MP_DEFINE_CONST_FUN_OBJ_2(s_tagged_sha256_obj, s_tagged_sha256);
-
 
 STATIC mp_obj_t s_sign_schnorr(mp_obj_t privkey_in, mp_obj_t digest_in, mp_obj_t aux_rand_in)
 {
@@ -679,7 +658,6 @@ STATIC const mp_rom_map_elem_t globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_sign), MP_ROM_PTR(&s_sign_obj) },
     { MP_ROM_QSTR(MP_QSTR_sign_schnorr), MP_ROM_PTR(&s_sign_schnorr_obj) },
     { MP_ROM_QSTR(MP_QSTR_verify_schnorr), MP_ROM_PTR(&s_verify_schnorr_obj) },
-    { MP_ROM_QSTR(MP_QSTR_tagged_sha256), MP_ROM_PTR(&s_tagged_sha256_obj) },
     { MP_ROM_QSTR(MP_QSTR_ctx_rnd), MP_ROM_PTR(&s_ctx_rnd_obj) },
 };
 
