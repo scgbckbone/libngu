@@ -79,10 +79,68 @@ static void _calc_pubkey(mp_obj_hdnode_t *self)
     assert(outlen == sizeof(self->pubkey));
 }
 
-
 static inline void _calc_hash160(mp_obj_hdnode_t *self)
 {
     hash160(self->pubkey, 33, self->hash160);
+}
+
+mp_obj_t hdnode_deserialize_bytes(mp_obj_hdnode_t *self, uint8_t *p) {
+    // deserialize byte serialized extended key to hdnode object
+    self->depth = -1;
+
+    uint32_t version = read_be32(&p);
+    self->depth = *(p++);
+    self->parent_fp = read_be32(&p);
+    self->child_num = read_be32(&p);
+
+    memcpy(self->chain_code, p, 32);
+    p += 32;
+
+    if(p[0] == 0x00) {
+        /* mainnet/testnet private */
+        assert((version == 0x0488ADE4) || (version == 0x04358394));
+        p++;
+        memcpy(self->privkey, p, 32);
+        p += 32;
+        self->have_private = true;
+        _calc_pubkey(self);
+    } else if(p[0] == 0x02 || p[0] == 0x3) {
+        /* mainnet/testnet public */
+        assert((version == 0x0488B21E) || (version == 0x043587CF));
+        // 33 bytes of pubkey
+        self->have_private = false;
+        memcpy(self->pubkey, p, 33);
+        p += 33;
+
+        /* verify that parsed pubkey is valid */
+        secp256k1_pubkey pub;
+        int ok;
+        ok = secp256k1_ec_pubkey_parse(lib_ctx, &pub, self->pubkey, 33);
+        if(!ok) goto fail;
+
+    } else {
+        goto fail;
+    }
+
+    _calc_hash160(self);
+
+#ifdef EXTRA_DEBUG
+    self->path[0] = 0;
+    self->root_fp = 0;
+    if(self->depth) {
+        snprintf(self->path, sizeof(self->path), "m/_/%d", (int)(self->child_num & 0x7fffffff));
+        if( self->child_num & 0x80000000) {
+            strcat(self->path, "'");
+        }
+    }
+#endif
+
+    return mp_obj_new_int(version);
+
+    fail:
+        self->depth = -1;
+        mp_raise_ValueError(MP_ERROR_TEXT("bad pubkey"));
+        return 0;       // not reached
 }
 
 static uint32_t _calc_my_fp(mp_obj_hdnode_t *self)
@@ -241,7 +299,7 @@ STATIC mp_obj_t s_hdnode_deserialize(mp_obj_t self_in, mp_obj_t encoded) {
     // deserialize into self, works from base58; returns version observed
     mp_obj_hdnode_t *self = MP_OBJ_TO_PTR(self_in);
 
-    uint8_t tmp[120], *p = tmp;
+    uint8_t tmp[120];
     int len_out = base58_decode_check(mp_obj_str_get_str(encoded), tmp, sizeof(tmp));
     if(len_out <= 0) {
         mp_raise_ValueError(MP_ERROR_TEXT("encoding error"));
@@ -250,65 +308,23 @@ STATIC mp_obj_t s_hdnode_deserialize(mp_obj_t self_in, mp_obj_t encoded) {
         mp_raise_ValueError(MP_ERROR_TEXT("bad len"));
     }
 
-    self->depth = -1;
-
-    uint32_t version = read_be32(&p);
-    self->depth = *(p++);
-    self->parent_fp = read_be32(&p);
-    self->child_num = read_be32(&p);
-
-    memcpy(self->chain_code, p, 32);
-    p += 32;
-    
-    if(p[0] == 0x00) {
-        /* mainnet/testnet private */
-        assert((version == 0x0488ADE4) || (version == 0x04358394));
-        p++;
-        memcpy(self->privkey, p, 32);
-        p += 32;
-        self->have_private = true;
-        _calc_pubkey(self);
-    } else if(p[0] == 0x02 || p[0] == 0x3) {
-        /* mainnet/testnet public */
-        assert((version == 0x0488B21E) || (version == 0x043587CF));
-        // 33 bytes of pubkey
-        self->have_private = false;
-        memcpy(self->pubkey, p, 33);
-        p += 33;
-
-        /* verify that parsed pubkey is valid */
-        secp256k1_pubkey pub;
-        int ok;
-        ok = secp256k1_ec_pubkey_parse(lib_ctx, &pub, self->pubkey, 33);
-        if(!ok) goto fail;
-
-    } else {
-        goto fail;
-    }
-
-    _calc_hash160(self);
-
-#ifdef EXTRA_DEBUG
-    self->path[0] = 0;
-    self->root_fp = 0;
-    if(self->depth) {
-        snprintf(self->path, sizeof(self->path), "m/_/%d", (int)(self->child_num & 0x7fffffff));
-        if( self->child_num & 0x80000000) {
-            strcat(self->path, "'");
-        }
-    }
-#endif
-
-    assert(p == &tmp[78]);
-
-    return mp_obj_new_int(version);
-
-    fail:
-        self->depth = -1;
-        mp_raise_ValueError(MP_ERROR_TEXT("bad pubkey"));
-        return 0;       // not reached
+    return hdnode_deserialize_bytes(self, tmp);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(s_hdnode_deserialize_obj, s_hdnode_deserialize);
+
+STATIC mp_obj_t s_hdnode_deser_bytes(mp_obj_t self_in, mp_obj_t bytes) {
+    // deserialize into self, works from base58; returns version observed
+    mp_obj_hdnode_t *self = MP_OBJ_TO_PTR(self_in);
+
+    mp_buffer_info_t buf;
+    mp_get_buffer_raise(bytes, &buf, MP_BUFFER_READ);
+    if(buf.len != 78) {
+        mp_raise_ValueError(MP_ERROR_TEXT("bad len"));
+    }
+
+    return hdnode_deserialize_bytes(self, buf.buf);
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_2(s_hdnode_deser_bytes_obj, s_hdnode_deser_bytes);
 
 STATIC mp_obj_t s_hdnode_from_master(mp_obj_t self_in, mp_obj_t master_secret_in) {
     mp_obj_hdnode_t *self = MP_OBJ_TO_PTR(self_in);
@@ -586,6 +602,7 @@ STATIC const mp_rom_map_elem_t s_hdnode_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR_pubkey), MP_ROM_PTR(&s_hdnode_pubkey_obj) },
     { MP_ROM_QSTR(MP_QSTR_serialize), MP_ROM_PTR(&s_hdnode_serialize_obj) },
     { MP_ROM_QSTR(MP_QSTR_deserialize), MP_ROM_PTR(&s_hdnode_deserialize_obj) },
+    { MP_ROM_QSTR(MP_QSTR_deser_bytes), MP_ROM_PTR(&s_hdnode_deser_bytes_obj) },
     { MP_ROM_QSTR(MP_QSTR_from_master), MP_ROM_PTR(&s_hdnode_from_master_obj) },
     { MP_ROM_QSTR(MP_QSTR_from_chaincode_privkey), MP_ROM_PTR(&s_hdnode_from_chaincode_privkey_obj) },
     { MP_ROM_QSTR(MP_QSTR_from_chaincode_pubkey), MP_ROM_PTR(&s_hdnode_from_chaincode_pubkey_obj) },

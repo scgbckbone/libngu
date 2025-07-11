@@ -42,8 +42,13 @@ except ImportError:
     sys.path.insert(0, '')      # bugfix
     pass
 
+# mainnet
 V_XPRV = 0x0488ade4
 V_XPUB = 0x0488b21e
+
+# testnet
+V_XPUB_T = 0x043587cf
+V_XPRV_T = 0x04358394
 
 from ubinascii import unhexlify as a2b_hex
 
@@ -56,8 +61,9 @@ import ngu, gc
 HDNode = ngu.hdnode.HDNode
 
 def test_serial():
+    ek = 'xprv9s21ZrQH143K3FperxDp8vFsFycKCRcJGAFmcV7umQmcnMZaLtZRt13QJDsoS5F6oYT6BB4sS6zmTmyQAEkJKxJ7yByDNtRe5asP2jFGhT6'
     a = HDNode()
-    a.deserialize('xprv9s21ZrQH143K3FperxDp8vFsFycKCRcJGAFmcV7umQmcnMZaLtZRt13QJDsoS5F6oYT6BB4sS6zmTmyQAEkJKxJ7yByDNtRe5asP2jFGhT6')
+    a.deserialize(ek)
     s = a.serialize(V_XPUB, 0)
     assert s[0:4] == 'xpub'
     assert len(ngu.codecs.b58_decode(s)) == 78
@@ -65,6 +71,38 @@ def test_serial():
     b = HDNode()
     vo = b.deserialize(s)
     assert vo == V_XPUB, hex(vo)
+
+    c = HDNode()
+    vo = c.deser_bytes(ngu.codecs.b58_decode(ek))
+    assert vo == V_XPRV, hex(vo)
+
+    assert s == c.serialize(V_XPUB, 0)
+    assert ek == c.serialize(V_XPRV, 1)
+
+    for ek in [
+        "xprv9yJjtJW1aBmdeibkxpKGoiNS2k8tKvhLJbznnoXmjvFDthzfyHdqzkJskHbpKZ3eH6r4oR37sUnhEMEiGc6Gsq6a3LSXrD92WfaD1iXr5vd",
+        "xpub6CJ6Hp2uQZKvsCgE4qrHArKAamyNjPRBfpvPbBwPJFnCmWKpWpx6YYdMbWuUyxVrVHTSDWduxJh68j4angYoLwyfhhw6q6p4i8C3UKg1i7A",
+        "xprvA2B5Z9fdtkzqDEmqKPfw5q4RTCDJPQ9Jhq7c7hpft5hVDTN5TzTqpUHGjb1Vq7R1S2bRje1iB9FLYnGR9Hhn3jaAqPb2rMo4MCPAAkpa9Py",
+        "xpub6FARxfCXj8Z8RirJRRCwSy1A1E3nnrsA543Cv6EHSREU6FhE1Xn6NGbkauByqqWerBAUWS6aM6jqeNbwy186KdLXRytiB3Gte9kuTiCGfuk",
+        "tprv8gxDsKcU3ZrQHCy3FrhetWiwM7Dkvnd9NoGe6XqTYKkTVujpkaM4DtRiva4PC1x3PxdtKbyQXPiTxWrtFFfSFfNZmseP1QHwE7LRJ1KkTkp",
+        "tpubDDeG1jeiBwY5Afzq9WNFHvP3v8jh67p3x6sRP3skxbYrLPzbNyAeQP3b6jJQcgQnJ5rMqWyvQS8TTyXYsmmoTA5Xek5Bzm9XLRarMWmXdT4",
+        "tprv8hHRZyJWoToQiLe5kFPtYezyJEs2LJqYy7gTRfdMXjbyiuvM3sbu7t61R8S6PGp6NpoZwfc9cHzWDa3W6DhBeiVcSX7HbbfwjUcdMgmnKY4",
+        "tpubDDyTiPLkwqV5bofsdu4Ux4f5sGNxVe2TYRHEiBfex1QNZQB7gGRVJNhsbETUXt3KN3igD3cJuhXCnhpJkYZ1Z7m23f9V78YdcCVG1TLi7V8",
+    ]:
+        is_prv = ek[1:4] == "prv"
+
+        if ek[0] == "t":
+            # testnet
+            ver = V_XPRV_T if is_prv else V_XPUB_T
+        else:
+            ver = V_XPRV if is_prv else V_XPUB
+
+        ekb = ngu.codecs.b58_decode(ek)
+        n = HDNode()
+        n.deser_bytes(ekb)
+        ser = n.serialize(ver, int(is_prv))
+        assert ser == ek
+
 
 def test_b39():
     from ngu_tests import b39_vectors
