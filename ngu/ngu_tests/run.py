@@ -23,3 +23,4 @@ if hasattr(ngu, 'ec'):
     import ngu_tests.test_ec
     import ngu_tests.test_ec_gen
 import ngu_tests.test_bip39
+import ngu_tests.test_bip32

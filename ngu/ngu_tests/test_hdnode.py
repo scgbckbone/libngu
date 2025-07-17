@@ -85,7 +85,7 @@ def test_derive():
     p1 = a.derive(43, False).pubkey()
 
     b = HDNode()
-    assert b.deserialize(a.serialize(0x123, 0)) == 0x123
+    assert b.deserialize(a.serialize(0x0488B21E, 0)) == 0x0488B21E
     p2 = b.pubkey()
     assert b.depth() == 1
     assert b.parent_fp() == m_fp

@@ -261,18 +261,29 @@ STATIC mp_obj_t s_hdnode_deserialize(mp_obj_t self_in, mp_obj_t encoded) {
     p += 32;
     
     if(p[0] == 0x00) {
+        /* mainnet/testnet private */
+        assert((version == 0x0488ADE4) || (version == 0x04358394));
         p++;
         memcpy(self->privkey, p, 32);
         p += 32;
         self->have_private = true;
         _calc_pubkey(self);
     } else if(p[0] == 0x02 || p[0] == 0x3) {
+        /* mainnet/testnet public */
+        assert((version == 0x0488B21E) || (version == 0x043587CF));
         // 33 bytes of pubkey
         self->have_private = false;
         memcpy(self->pubkey, p, 33);
         p += 33;
+
+        /* verify that parsed pubkey is valid */
+        secp256k1_pubkey pub;
+        int ok;
+        ok = secp256k1_ec_pubkey_parse(lib_ctx, &pub, self->pubkey, 33);
+        if(!ok) goto fail;
+
     } else {
-        mp_raise_ValueError(MP_ERROR_TEXT("bad pubkey"));
+        goto fail;
     }
 
     _calc_hash160(self);
@@ -291,6 +302,11 @@ STATIC mp_obj_t s_hdnode_deserialize(mp_obj_t self_in, mp_obj_t encoded) {
     assert(p == &tmp[78]);
 
     return mp_obj_new_int(version);
+
+    fail:
+        self->depth = -1;
+        mp_raise_ValueError(MP_ERROR_TEXT("bad pubkey"));
+        return 0;       // not reached
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(s_hdnode_deserialize_obj, s_hdnode_deserialize);
 
