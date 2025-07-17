@@ -25,6 +25,7 @@ test tests:
 	$(MPY) test_ec_gen.py
 	$(PY) test_bip39.py
 	$(MPY) test_bip39.py
+ 	$(MPY) test_bip32.py
 
 # runs the test compiled in, not here
 # or, on target
