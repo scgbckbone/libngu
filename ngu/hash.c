@@ -211,25 +211,14 @@ STATIC mp_obj_t hm_hash160(mp_obj_t arg) {
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(hm_hash160_obj, hm_hash160);
 
 
-// Pbkdf2 using sha512 hmac, for use in BIP39=>BIP32 seed
-STATIC mp_obj_t pbkdf2_sha512(mp_obj_t pass_in, mp_obj_t salt_in, mp_obj_t rounds_in) {
+STATIC mp_obj_t pbkdf2_hmac(uint32_t md_len, mp_obj_t pass_in, mp_obj_t salt_in, mp_obj_t rounds_in) {
+
     mp_buffer_info_t pass, salt;
     mp_get_buffer_raise(pass_in, &pass, MP_BUFFER_READ);
     mp_get_buffer_raise(salt_in, &salt, MP_BUFFER_READ);
-    const uint32_t H_SIZE = 64;      // because sha512
-
-#if MICROPY_SSL_MBEDTLS
-    const mbedtls_md_info_t *md_algo = mbedtls_md_info_from_type(MBEDTLS_MD_SHA512);
-#endif
-
-    vstr_t key_out;
-    vstr_init_len(&key_out, H_SIZE);
-    uint32_t key_len = H_SIZE;
-    uint8_t *key = (uint8_t *)key_out.buf;
-
-    // Based on https://github.com/openbsd/src/blob/master/lib/libutil/pkcs5_pbkdf2.c
 
     uint32_t rounds = mp_obj_get_int_truncated(rounds_in);
+
     if(rounds < 1) {
         mp_raise_ValueError(MP_ERROR_TEXT("rounds"));
     }
@@ -237,11 +226,44 @@ STATIC mp_obj_t pbkdf2_sha512(mp_obj_t pass_in, mp_obj_t salt_in, mp_obj_t round
         mp_raise_ValueError(MP_ERROR_TEXT("salt"));
     }
 
-	uint8_t d1[H_SIZE], d2[H_SIZE], obuf[H_SIZE];
+    vstr_t key_out;
+    vstr_init_len(&key_out, md_len);
+    uint8_t *key = (uint8_t *)key_out.buf;
+
+#if MICROPY_SSL_MBEDTLS
+    const mbedtls_md_info_t *algo;
+    switch(md_len) {
+        case 64:
+            algo = mbedtls_md_info_from_type(MBEDTLS_MD_SHA512);
+            break;
+        case 32:
+            algo = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
+            break;
+        default:
+            mp_raise_ValueError(NULL);
+    }
+#else
+    const cf_chash *algo = NULL;
+    switch(md_len) {
+        case 64:
+            algo = &cf_sha512;
+            break;
+        case 32:
+            algo = &cf_sha256;
+            break;
+        default:
+            mp_raise_ValueError(NULL);
+    }
+#endif
+
+    // Based on https://github.com/openbsd/src/blob/master/lib/libutil/pkcs5_pbkdf2.c
+
+	uint8_t d1[md_len], d2[md_len], obuf[md_len];
 
     uint8_t asalt[salt.len + 4];
 	memcpy(asalt, salt.buf, salt.len);
 
+    uint32_t key_len = md_len;
 	for(uint32_t count=1; key_len > 0; count++) {
 		asalt[salt.len + 0] = (count >> 24) & 0xff;
 		asalt[salt.len + 1] = (count >> 16) & 0xff;
@@ -249,27 +271,25 @@ STATIC mp_obj_t pbkdf2_sha512(mp_obj_t pass_in, mp_obj_t salt_in, mp_obj_t round
 		asalt[salt.len + 3] = count & 0xff;
 
 #if MICROPY_SSL_MBEDTLS
-        mbedtls_md_hmac(md_algo, pass.buf, pass.len, asalt, sizeof(asalt), d1);
+        mbedtls_md_hmac(algo, pass.buf, pass.len, asalt, sizeof(asalt), d1);
 #else
-        cf_hmac(pass.buf, pass.len, asalt, sizeof(asalt), d1, &cf_sha512);
+        cf_hmac(pass.buf, pass.len, asalt, sizeof(asalt), d1, algo);
 #endif
 
-		//hmac_sha256(asalt, salt_len + 4, pass.buf, pass.len, d1);
-		memcpy(obuf, d1, H_SIZE);
+		memcpy(obuf, d1, md_len);
 
 		for(uint32_t i=1; i < rounds; i++) {
-			//hmac_sha1(d1, sizeof(d1), pass.buf, pass.len, d2);
 #if MICROPY_SSL_MBEDTLS
-            mbedtls_md_hmac(md_algo, pass.buf, pass.len, d1, sizeof(d1), d2);
+            mbedtls_md_hmac(algo, pass.buf, pass.len, d1, sizeof(d1), d2);
 #else
-            cf_hmac(pass.buf, pass.len, d1, sizeof(d1), d2, &cf_sha512);
+            cf_hmac(pass.buf, pass.len, d1, sizeof(d1), d2, algo);
 #endif
 			memcpy(d1, d2, sizeof(d1));
 			for (uint32_t j = 0; j < sizeof(obuf); j++)
 				obuf[j] ^= d1[j];
 		}
 
-		uint32_t r = MIN(key_len, H_SIZE);
+		uint32_t r = MIN(key_len, md_len);
 		memcpy(key, obuf, r);
 		key += r;
 		key_len -= r;
@@ -283,7 +303,18 @@ STATIC mp_obj_t pbkdf2_sha512(mp_obj_t pass_in, mp_obj_t salt_in, mp_obj_t round
 
     return mp_obj_new_str_from_vstr(&mp_type_bytes, &key_out);
 }
+
+// Pbkdf2 using sha512 hmac, for use in BIP39=>BIP32 seed
+STATIC mp_obj_t pbkdf2_sha512(mp_obj_t pass_in, mp_obj_t salt_in, mp_obj_t rounds_in) {
+    return pbkdf2_hmac(64, pass_in, salt_in, rounds_in);
+}
 STATIC MP_DEFINE_CONST_FUN_OBJ_3(pbkdf2_sha512_obj, pbkdf2_sha512);
+
+// Pbkdf2 using sha256 hmac
+STATIC mp_obj_t pbkdf2_sha256(mp_obj_t pass_in, mp_obj_t salt_in, mp_obj_t rounds_in) {
+    return pbkdf2_hmac(32, pass_in, salt_in, rounds_in);
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_3(pbkdf2_sha256_obj, pbkdf2_sha256);
 
 
 STATIC const mp_rom_map_elem_t mp_module_hash_globals_table[] = {
@@ -296,6 +327,7 @@ STATIC const mp_rom_map_elem_t mp_module_hash_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_sha256t), MP_ROM_PTR(&hm_tagged_sha256_obj) },
     { MP_ROM_QSTR(MP_QSTR_hash160), MP_ROM_PTR(&hm_hash160_obj) },
     { MP_ROM_QSTR(MP_QSTR_pbkdf2_sha512), MP_ROM_PTR(&pbkdf2_sha512_obj) },
+    { MP_ROM_QSTR(MP_QSTR_pbkdf2_sha256), MP_ROM_PTR(&pbkdf2_sha256_obj) },
 
 };
 

@@ -42,7 +42,7 @@ try:
 except ImportError:
     import hashlib
     from binascii import b2a_hex, a2b_hex
-    from hashlib import sha512, sha256
+    from hashlib import sha512, sha256, pbkdf2_hmac
 
     _ripemd160 = lambda x: hashlib.new('ripemd160', x).digest()
 
@@ -54,7 +54,6 @@ except ImportError:
     ]
 
     # gen tests
-    import wallycore as w
     with open('test_hash_gen.py', 'wt') as fd:
         print("import ngu", file=fd)
 
@@ -66,15 +65,17 @@ except ImportError:
                 n = 2000
                 print("assert ngu.hash.%s(bytes(%d)) == %r" % (nm, n, func(bytes(n))), file=fd)
 
-        print("F = ngu.hash.pbkdf2_sha512", file=fd)
-        for pw, salt, rounds in [ 
-                (b'abc', b'def', 300), 
-                (b'abc'*20, b'def'*20, 3000), 
-                (b'\x01\x03\x04\x05\x06', b'\x04\x03\x02\x01\x00', 30), 
-                (b'a', b'd', 30), 
-            ]:
-            expect = w.pbkdf2_hmac_sha512(pw, salt, 0, rounds)
-            print("assert F(%r, %r, %d) == %r" % (pw, salt, rounds, bytes(expect)), file=fd)
+        for hf in ["sha512", "sha256"]:
+            print("F = ngu.hash.pbkdf2_%s" % hf, file=fd)
+            for pw, salt, rounds in [
+                    (b'abc', b'def', 300),
+                    (b'abc'*20, b'def'*20, 3000),
+                    (b'\x01\x03\x04\x05\x06', b'\x04\x03\x02\x01\x00', 30),
+                    (b'a', b'd', 30),
+                    (b"x" * 256, b"y"*128, 100000),
+                ]:
+                expect = pbkdf2_hmac(hf, pw, salt, rounds, dklen=32 if hf == "sha256" else 64)
+                print("assert F(%r, %r, %d) == %r" % (pw, salt, rounds, bytes(expect)), file=fd)
 
         print("print('PASS - %s')" % fd.name, file=fd)
         print("run code now in: %s" % fd.name)
