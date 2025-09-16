@@ -294,7 +294,7 @@ _lookup = {'a':0, 'ab':0, 'ac':10, 'ad':24, 'ae':33, 'af':34, 'ag':37, 'ah':41, 
 
 
 def get_word_index(word):
-    "input string word; return int index in wordlist, or ValueError"
+    # input string word; return int index in wordlist, or ValueError
     # - also accepts just first four distinctive characters of the word
 
     try:
@@ -316,7 +316,7 @@ def get_word_index(word):
 
 
 def b2a_words(msg):
-    "map binary to words, including a few bits of checksum, per BIP39 spec"
+    # map binary to words, including a few bits of checksum, per BIP39 spec
     l = len(msg)
     assert 16 <= l <= 32
     assert l % 4 == 0
@@ -345,7 +345,7 @@ def b2a_words(msg):
 
 
 def _split_lookup(phrase):
-    "decode & lookup only"
+    # decode & lookup only
 
     if isinstance(phrase, str):
         phrase = phrase.split()
@@ -360,7 +360,7 @@ def _split_lookup(phrase):
     return num, rv
 
 def a2b_words(phrase):
-    "decode, raise on bad checksum"
+    # decode, raise on bad checksum
 
     num, rv = _split_lookup(phrase)
 
@@ -382,7 +382,7 @@ def a2b_words(phrase):
     return bits
 
 def a2b_words_guess(phrase):
-    "generate a list of possible final words"
+    # generate a list of possible final words
     num, rv = _split_lookup(phrase)
 
     if num not in { 11, 14, 17, 20, 23 }:
@@ -409,30 +409,25 @@ def next_char(prefix):
     assert pl >= 1
 
     try:
-        wn = wordlist_en.index(prefix)
-        if pl >= 4:
-            return (True, '', wordlist_en[wn])
-        exact = True
-    except ValueError:
-        exact = False
-        # skip down until first 1-2 char(s) match
-        try:
-            wn = _lookup[prefix[0:2]]
-        except KeyError:
-            # 2-prefix not in list
-            return (False, '', None)
+        wn = _lookup[prefix[0:2]]
+    except KeyError:
+        # prefix not in the _lookup list
+        return False, '', None
 
     first = None
     count = 0
-
+    exact = False
     chars = []
     for wn in range(wn, 0x800):
         word = wordlist_en[wn]
-        if word[0:pl] > prefix: break
-        if word[0:pl] == prefix:
+        wc = word[0:pl]
+        if wc > prefix: break  # lexicographical ordering
+        if wc == prefix:
+            if word == prefix:
+                exact = True
             if pl >= 4:
                 # they gave 4+ letter prefix of correct word; they're done
-                return (True, '', word)
+                return True, '', word
 
             if not count:
                 first = word
@@ -452,6 +447,6 @@ def master_secret(words, pw=b''):
         import ngu
         return ngu.hash.pbkdf2_sha512(words, salt, 2048)
     except ImportError:
-        import wallycore
-        return wallycore.pbkdf2_hmac_sha512(words, salt, 0, 2048)
+        import hashlib
+        return hashlib.pbkdf2_hmac("sha512", words, salt, 2048, dklen=64)
 

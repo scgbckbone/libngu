@@ -64,10 +64,13 @@ def test_prefix():
     assert bip39.next_char('dkfjh') == (False, '', None)
     assert bip39.next_char('a') == (False, 'bcdefghilmnprstuvwx', None)
     assert bip39.next_char('q') == (False, 'u', None)
+    assert bip39.next_char('x') == (False, '', None)  # only char not in the _lookup
     assert bip39.next_char('qu') == (False, 'aeio', None)
     assert bip39.next_char('present') == (True, '', 'present')
     assert bip39.next_char('zoo') == (True, '', 'zoo')
     assert bip39.next_char('zo') == (False, 'no', None)
+    assert bip39.next_char('fat') == (True, 'ahi', None)
+    assert bip39.next_char('win') == (True, 'degknt', None)
 
     wl = bip39.wordlist_en
     for w in wl:
