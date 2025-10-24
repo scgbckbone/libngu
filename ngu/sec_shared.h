@@ -6,6 +6,7 @@
 #include "secp256k1/include/secp256k1_ecdh.h"
 #include "secp256k1/include/secp256k1_schnorrsig.h"
 #include "secp256k1/include/secp256k1_preallocated.h"
+#include "secp256k1/include/secp256k1_musig.h"
 
 
 // Shared context for all files in ngu. Never freed.
