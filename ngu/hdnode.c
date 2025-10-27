@@ -114,7 +114,7 @@ STATIC mp_obj_t s_hdnode_copy(mp_obj_t self_in) {
     *rv = *self;
     rv->base.type = &s_hdnode_type;
     
-    return rv;
+    return MP_OBJ_FROM_PTR(rv);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(s_hdnode_copy_obj, s_hdnode_copy);
 
@@ -125,7 +125,7 @@ STATIC mp_obj_t s_hdnode_blank(mp_obj_t self_in) {
     self->base.type = &s_hdnode_type;
     self->depth = -1;          // mark invalid
     
-    return self_in;
+    return MP_OBJ_FROM_PTR(self);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(s_hdnode_blank_obj, s_hdnode_blank);
 
@@ -319,7 +319,7 @@ STATIC mp_obj_t s_hdnode_from_master(mp_obj_t self_in, mp_obj_t master_secret_in
     _calc_pubkey(self);
     _calc_hash160(self);
 
-    return self_in;
+    return MP_OBJ_FROM_PTR(self);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(s_hdnode_from_master_obj, s_hdnode_from_master);
 
@@ -352,7 +352,7 @@ STATIC mp_obj_t s_hdnode_from_chaincode_privkey(mp_obj_t self_in, mp_obj_t chain
     _calc_pubkey(self);
     _calc_hash160(self);
 
-    return self_in;
+    return MP_OBJ_FROM_PTR(self);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_3(s_hdnode_from_chaincode_privkey_obj, s_hdnode_from_chaincode_privkey);
 
@@ -388,7 +388,7 @@ STATIC mp_obj_t s_hdnode_from_chaincode_pubkey(mp_obj_t self_in, mp_obj_t chain_
 
     _calc_hash160(self);
 
-    return self_in;
+    return MP_OBJ_FROM_PTR(self);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_3(s_hdnode_from_chaincode_pubkey_obj, s_hdnode_from_chaincode_pubkey);
 
@@ -404,7 +404,7 @@ STATIC mp_obj_t s_hdnode_censor(mp_obj_t self_in) {
     self->root_fp = 0;
 #endif
 
-    return self_in;
+    return MP_OBJ_FROM_PTR(self);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(s_hdnode_censor_obj, s_hdnode_censor);
 
@@ -482,7 +482,7 @@ STATIC mp_obj_t s_hdnode_derive(mp_obj_t self_in, mp_obj_t next_child_in, mp_obj
 
     _calc_hash160(self);
 
-    return self_in;
+    return MP_OBJ_FROM_PTR(self);
 
 fail:
     self->depth = -1;

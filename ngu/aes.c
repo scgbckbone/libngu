@@ -64,7 +64,7 @@ STATIC mp_obj_t s_CBC_make_new(const mp_obj_type_t *type, size_t n_args, size_t 
 
     cf_cbc_init(&o->mode_ctx, &cf_aes, &o->aes_ctx, iv.buf);
     
-    return o;
+    return MP_OBJ_FROM_PTR(o);
 }
 STATIC mp_obj_t s_CTR_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
     // args: key, nonce
@@ -88,7 +88,7 @@ STATIC mp_obj_t s_CTR_make_new(const mp_obj_type_t *type, size_t n_args, size_t 
         cf_ctr_init(&o->mode_ctx, &cf_aes, &o->aes_ctx, nonce);
     }
     
-    return o;
+    return MP_OBJ_FROM_PTR(o);
 }
 
 STATIC mp_obj_t s_CBC_cipher(mp_obj_t self_in, mp_obj_t buf_in)
@@ -140,7 +140,7 @@ STATIC mp_obj_t s_CBC_blank(mp_obj_t self_in) {
     memset(self, 0, sizeof(mp_obj_CBC_t));
     self->base.type = &s_CBC_type;
     
-    return self_in;
+    return MP_OBJ_FROM_PTR(self);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(s_CBC_blank_obj, s_CBC_blank);
 
@@ -151,7 +151,7 @@ STATIC mp_obj_t s_CBC_copy(mp_obj_t self_in) {
     *rv = *self;
     rv->base.type = &s_CBC_type;
     
-    return rv;
+    return MP_OBJ_FROM_PTR(rv);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(s_CBC_copy_obj, s_CBC_copy);
 
@@ -162,7 +162,7 @@ STATIC mp_obj_t s_CTR_blank(mp_obj_t self_in) {
     memset(self, 0, sizeof(mp_obj_CTR_t));
     self->base.type = &s_CTR_type;
     
-    return self_in;
+    return MP_OBJ_FROM_PTR(self);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(s_CTR_blank_obj, s_CTR_blank);
 
@@ -173,7 +173,7 @@ STATIC mp_obj_t s_CTR_copy(mp_obj_t self_in) {
     *rv = *self;
     rv->base.type = &s_CTR_type;
     
-    return rv;
+    return MP_OBJ_FROM_PTR(rv);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(s_CTR_copy_obj, s_CTR_copy);
 

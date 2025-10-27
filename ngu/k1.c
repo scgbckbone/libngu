@@ -532,7 +532,7 @@ STATIC mp_obj_t s_keypair_pubkey(mp_obj_t self_in) {
         mp_raise_ValueError(MP_ERROR_TEXT("secp256k1_keypair_pub"));
     }
 
-    return rv;
+    return MP_OBJ_FROM_PTR(rv);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(s_keypair_pubkey_obj, s_keypair_pubkey);
 
@@ -550,7 +550,7 @@ STATIC mp_obj_t s_keypair_xonly_pubkey(mp_obj_t self_in) {
         mp_raise_ValueError(MP_ERROR_TEXT("secp256k1_keypair_xonly_pub"));
     }
 
-    return rv;
+    return MP_OBJ_FROM_PTR(rv);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(s_keypair_xonly_pubkey_obj, s_keypair_xonly_pubkey);
 
@@ -584,7 +584,7 @@ STATIC mp_obj_t s_keypair_xonly_tweak_add(mp_obj_t self_in, mp_obj_t tweak32_in)
 		mp_raise_ValueError(MP_ERROR_TEXT("secp256k1_keypair_xonly_tweak_add keypair_sec"));
 	}
 	memcpy(&rv->privkey, seckey, 32);
-    return rv;
+    return MP_OBJ_FROM_PTR(rv);
 
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(s_keypair_xonly_tweak_add_obj, s_keypair_xonly_tweak_add);
