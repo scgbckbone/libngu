@@ -40,7 +40,6 @@ typedef struct  {
 
 typedef struct  {
     mp_obj_base_t base;
-    uint8_t             privkey[32];
     secp256k1_keypair   keypair;
 } mp_obj_keypair_t;
 
@@ -365,19 +364,19 @@ STATIC mp_obj_t s_sign(mp_obj_t privkey_in, mp_obj_t digest_in, mp_obj_t counter
     }
 
     mp_buffer_info_t privkey;
-    uint8_t *pk;
+    unsigned char pk[32];
 
     if(mp_obj_get_type(privkey_in) == &s_keypair_type) {
         // mp_obj_keypair_t as first arg
         mp_obj_keypair_t *keypair = MP_OBJ_TO_PTR(privkey_in);
-        pk = keypair->privkey;
+	    secp256k1_keypair_sec(lib_ctx, pk, &keypair->keypair);
     } else {
         // typical: raw privkey
         mp_get_buffer_raise(privkey_in, &privkey, MP_BUFFER_READ);
         if(privkey.len != 32) {
             mp_raise_ValueError(MP_ERROR_TEXT("privkey len != 32"));
         }
-        pk = privkey.buf;
+        memcpy(pk, privkey.buf, 32);
     }
 
     mp_obj_sig_t *rv = m_new_obj(mp_obj_sig_t);
@@ -482,9 +481,10 @@ STATIC mp_obj_t s_keypair_make_new(const mp_obj_type_t *type, size_t n_args, siz
 
     sec_setup_ctx();
 
+    unsigned char seckey[32];
     if(n_args == 0) {
         // pick random key
-        my_random_bytes(o->privkey, 32);
+        my_random_bytes(seckey, 32);
     } else {
         mp_buffer_info_t inp;
         mp_get_buffer_raise(args[0], &inp, MP_BUFFER_READ);
@@ -492,15 +492,15 @@ STATIC mp_obj_t s_keypair_make_new(const mp_obj_type_t *type, size_t n_args, siz
             mp_raise_ValueError(MP_ERROR_TEXT("privkey len != 32"));
         }
 
-        memcpy(o->privkey, (uint8_t *)inp.buf, 32);
+        memcpy(seckey, inp.buf, 32);
     }
 
     // always generate keypair based on secret
-    int x = secp256k1_keypair_create(lib_ctx, &o->keypair, o->privkey);
+    int x = secp256k1_keypair_create(lib_ctx, &o->keypair, seckey);
 
     if((x == 0) && (n_args == 0)) {
-        my_random_bytes(o->privkey, 32);
-        x = secp256k1_keypair_create(lib_ctx, &o->keypair, o->privkey);
+        my_random_bytes(seckey, 32);
+        x = secp256k1_keypair_create(lib_ctx, &o->keypair, seckey);
         // single rety only, because no-one is that unlucky
     }
     if(x == 0) {
@@ -516,7 +516,10 @@ STATIC mp_obj_t s_keypair_make_new(const mp_obj_type_t *type, size_t n_args, siz
 STATIC mp_obj_t s_keypair_privkey(mp_obj_t self_in) {
     mp_obj_keypair_t *self = MP_OBJ_TO_PTR(self_in);
 
-    return mp_obj_new_bytes(self->privkey, 32);
+    unsigned char seckey[32];
+	secp256k1_keypair_sec(lib_ctx, seckey, &self->keypair);
+
+    return mp_obj_new_bytes(seckey, 32);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(s_keypair_privkey_obj, s_keypair_privkey);
 
@@ -557,21 +560,24 @@ STATIC mp_obj_t s_keypair_xonly_pubkey(mp_obj_t self_in) {
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(s_keypair_xonly_pubkey_obj, s_keypair_xonly_pubkey);
 
 STATIC mp_obj_t s_keypair_xonly_tweak_add(mp_obj_t self_in, mp_obj_t tweak32_in) {
-//  Tweak a keypair by adding tweak32 to the secret key and updating the public
-//  key accordingly.
+    //  Tweak a keypair by adding tweak32 to the secret key and updating the public
+    //  key accordingly.
     mp_buffer_info_t tweak32;
     mp_get_buffer_raise(tweak32_in, &tweak32, MP_BUFFER_READ);
     if(tweak32.len != 32) {
         mp_raise_ValueError(MP_ERROR_TEXT("tweak32 len != 32"));
     }
     mp_obj_keypair_t *self = MP_OBJ_TO_PTR(self_in);
-//  create new tweaked object rather than updating self
+    //  create new tweaked object rather than updating self
     mp_obj_keypair_t *rv = m_new_obj(mp_obj_keypair_t);
     rv->base.type = &s_keypair_type;
 
     sec_setup_ctx();
 
-    int key_ok = secp256k1_keypair_create(lib_ctx, &rv->keypair, self->privkey);
+    unsigned char seckey[32];
+	secp256k1_keypair_sec(lib_ctx, seckey, &self->keypair);
+
+    int key_ok = secp256k1_keypair_create(lib_ctx, &rv->keypair, seckey);
     if(key_ok != 1) {
         mp_raise_ValueError(MP_ERROR_TEXT("secp256k1_keypair_xonly_tweak_add secp256k1_keypair_create"));
     }
@@ -580,12 +586,7 @@ STATIC mp_obj_t s_keypair_xonly_tweak_add(mp_obj_t self_in, mp_obj_t tweak32_in)
     if(ok != 1) {
         mp_raise_ValueError(MP_ERROR_TEXT("secp256k1_keypair_xonly_tweak_add invalid arguments"));
     }
-	unsigned char seckey[32];
-	ok = secp256k1_keypair_sec(lib_ctx, seckey, &rv->keypair);
-	if (ok != 1) {
-		mp_raise_ValueError(MP_ERROR_TEXT("secp256k1_keypair_xonly_tweak_add keypair_sec"));
-	}
-	memcpy(&rv->privkey, seckey, 32);
+
     return MP_OBJ_FROM_PTR(rv);
 
 }
@@ -632,10 +633,13 @@ STATIC mp_obj_t s_keypair_ecdh_multiply(mp_obj_t self_in, mp_obj_t other_point_i
         mp_raise_ValueError(MP_ERROR_TEXT("secp256k1_ec_pubkey_parse"));
     }
 
+    unsigned char seckey[32];
+	secp256k1_keypair_sec(lib_ctx, seckey, &self->keypair);
+
     vstr_t rv;
     vstr_init_len(&rv, 32);
 
-    ok = secp256k1_ecdh(lib_ctx, (uint8_t *)rv.buf, &other_point, self->privkey, _my_ecdh_hash, NULL);
+    ok = secp256k1_ecdh(lib_ctx, (uint8_t *)rv.buf, &other_point, seckey, _my_ecdh_hash, NULL);
     if(!ok) {
         mp_raise_ValueError(MP_ERROR_TEXT("secp256k1_ecdh"));
     }
