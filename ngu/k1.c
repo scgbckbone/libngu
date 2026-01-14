@@ -350,17 +350,17 @@ STATIC mp_obj_t s_verify_schnorr(mp_obj_t compact_sig_in, mp_obj_t digest_in, mp
     if(compact_sig.len != 64) {
         mp_raise_ValueError(MP_ERROR_TEXT("compact sig len != 64"));
     }
-    long unsigned int digest_len = 32;
+
     mp_buffer_info_t digest;
     mp_get_buffer_raise(digest_in, &digest, MP_BUFFER_READ);
-    if(digest.len != digest_len) {
+    if(digest.len != 32) {
         mp_raise_ValueError(MP_ERROR_TEXT("md len != 32"));
     }
     if(mp_obj_get_type(xonly_pubkey_in) != &s_xonly_pubkey_type) {
         mp_raise_ValueError(MP_ERROR_TEXT("has to be xonly pubkey type"));
     }
     mp_obj_xonly_pubkey_t *xonly_pub = MP_OBJ_TO_PTR(xonly_pubkey_in);
-    int ok = secp256k1_schnorrsig_verify(lib_ctx, compact_sig.buf, digest.buf, digest_len, &xonly_pub->pubkey);
+    int ok = secp256k1_schnorrsig_verify(lib_ctx, compact_sig.buf, digest.buf, digest.len, &xonly_pub->pubkey);
     if (ok != 1) {
         mp_raise_ValueError(MP_ERROR_TEXT("secp256k1_schnorrsig_verify"));
     }
