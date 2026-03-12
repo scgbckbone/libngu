@@ -133,6 +133,14 @@ for i in range(10):
     assert sig_kp == sig_raw
     assert ngu.secp256k1.verify_schnorr(sig_kp, msg_hash, kp.xonly_pubkey())
 
+
+try:
+    # invalid pubkey type, has to be xonly pubkey (not classic pubkey)
+    ngu.secp256k1.verify_schnorr(ngu.random.bytes(64), tweak, kp.pubkey())
+    raise RuntimeError
+except TypeError as e:
+    assert str(e) == "xonly pubkey type"
+
 try:
     from b340_vectors import vectors
 except ImportError:
