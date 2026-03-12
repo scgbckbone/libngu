@@ -108,7 +108,7 @@ void secp256k1_default_error_callback_fn(const char* message, void* data)
 }
 
 void ctx_randomize(void) {
-	unsigned char randomize[32];
+	uint8_t randomize[32];
 	my_random_bytes(randomize, 32);
 	int return_val = secp256k1_context_randomize(lib_ctx, randomize);
     if(!return_val) {
@@ -364,7 +364,7 @@ STATIC mp_obj_t s_sign(mp_obj_t privkey_in, mp_obj_t digest_in, mp_obj_t counter
     }
 
     mp_buffer_info_t privkey;
-    unsigned char pk[32];
+    uint8_t pk[32];
 
     if(mp_obj_get_type(privkey_in) == &s_keypair_type) {
         // mp_obj_keypair_t as first arg
@@ -481,7 +481,7 @@ STATIC mp_obj_t s_keypair_make_new(const mp_obj_type_t *type, size_t n_args, siz
 
     sec_setup_ctx();
 
-    unsigned char seckey[32];
+    uint8_t seckey[32];
     if(n_args == 0) {
         // pick random key
         my_random_bytes(seckey, 32);
@@ -516,7 +516,7 @@ STATIC mp_obj_t s_keypair_make_new(const mp_obj_type_t *type, size_t n_args, siz
 STATIC mp_obj_t s_keypair_privkey(mp_obj_t self_in) {
     mp_obj_keypair_t *self = MP_OBJ_TO_PTR(self_in);
 
-    unsigned char seckey[32];
+    uint8_t seckey[32];
 	secp256k1_keypair_sec(lib_ctx, seckey, &self->keypair);
 
     return mp_obj_new_bytes(seckey, 32);
@@ -574,7 +574,7 @@ STATIC mp_obj_t s_keypair_xonly_tweak_add(mp_obj_t self_in, mp_obj_t tweak32_in)
 
     sec_setup_ctx();
 
-    unsigned char seckey[32];
+    uint8_t seckey[32];
 	secp256k1_keypair_sec(lib_ctx, seckey, &self->keypair);
 
     int key_ok = secp256k1_keypair_create(lib_ctx, &rv->keypair, seckey);
@@ -592,7 +592,7 @@ STATIC mp_obj_t s_keypair_xonly_tweak_add(mp_obj_t self_in, mp_obj_t tweak32_in)
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(s_keypair_xonly_tweak_add_obj, s_keypair_xonly_tweak_add);
 
-static int _my_ecdh_hash(unsigned char *output, const unsigned char *x32, const unsigned char *y32, void *data) {
+static int _my_ecdh_hash(uint8_t *output, const uint8_t *x32, const uint8_t *y32, void *data) {
     (void)data;
 
 #if MICROPY_SSL_MBEDTLS
@@ -633,7 +633,7 @@ STATIC mp_obj_t s_keypair_ecdh_multiply(mp_obj_t self_in, mp_obj_t other_point_i
         mp_raise_ValueError(MP_ERROR_TEXT("secp256k1_ec_pubkey_parse"));
     }
 
-    unsigned char seckey[32];
+    uint8_t seckey[32];
 	secp256k1_keypair_sec(lib_ctx, seckey, &self->keypair);
 
     vstr_t rv;
@@ -824,20 +824,20 @@ STATIC mp_obj_t s_musig_nonce_gen(size_t n_args, const mp_obj_t *pos_args, mp_ma
     // 2nd arg - optional - session secrand
     // must not be reused
     // buffer is invalidated upon successful execution of this function
-    unsigned char session_secrand[32];
+    uint8_t session_secrand[32];
     if (args[1].u_obj != mp_const_none) {
         mp_buffer_info_t secrand;
         mp_get_buffer_raise(args[1].u_obj, &secrand, MP_BUFFER_READ);
         if(secrand.len != 32) {
             mp_raise_ValueError(MP_ERROR_TEXT("session secrand len != 32"));
         }
-        memcpy(session_secrand, (unsigned char *)secrand.buf, 32);
+        memcpy(session_secrand, (uint8_t *)secrand.buf, 32);
     } else {
 	    my_random_bytes(session_secrand, 32);
 	}
 
     // 3rd arg - optional - seckey
-    unsigned char *seckey = NULL;
+    uint8_t *seckey = NULL;
     if (args[2].u_obj != mp_const_none) {
         mp_buffer_info_t sk;
         mp_get_buffer_raise(args[2].u_obj, &sk, MP_BUFFER_READ);
@@ -845,13 +845,13 @@ STATIC mp_obj_t s_musig_nonce_gen(size_t n_args, const mp_obj_t *pos_args, mp_ma
             mp_raise_ValueError(MP_ERROR_TEXT("seckey len != 32"));
         }
 
-        unsigned char seckey_buf[32];
-        memcpy(seckey_buf, (unsigned char *)sk.buf, 32);
+        uint8_t seckey_buf[32];
+        memcpy(seckey_buf, (uint8_t *)sk.buf, 32);
         seckey = seckey_buf;
     }
 
     // 4th - optional - msg32
-    unsigned char *msg32 = NULL;
+    uint8_t *msg32 = NULL;
     if (args[3].u_obj != mp_const_none) {
         mp_buffer_info_t msg;
         mp_get_buffer_raise(args[3].u_obj, &msg, MP_BUFFER_READ);
@@ -859,8 +859,8 @@ STATIC mp_obj_t s_musig_nonce_gen(size_t n_args, const mp_obj_t *pos_args, mp_ma
             mp_raise_ValueError(MP_ERROR_TEXT("msg len != 32"));
         }
 
-        unsigned char msg_buf[32];
-        memcpy(msg_buf, (unsigned char *)msg.buf, 32);
+        uint8_t msg_buf[32];
+        memcpy(msg_buf, (uint8_t *)msg.buf, 32);
         msg32 = msg_buf;
     }
 
@@ -875,7 +875,7 @@ STATIC mp_obj_t s_musig_nonce_gen(size_t n_args, const mp_obj_t *pos_args, mp_ma
     }
 
     // 6th - optional - extra input32
-    unsigned char *extra_input32 = NULL;
+    uint8_t *extra_input32 = NULL;
     if (args[5].u_obj != mp_const_none) {
         mp_buffer_info_t extra32;
         mp_get_buffer_raise(args[5].u_obj, &extra32, MP_BUFFER_READ);
@@ -883,8 +883,8 @@ STATIC mp_obj_t s_musig_nonce_gen(size_t n_args, const mp_obj_t *pos_args, mp_ma
             mp_raise_ValueError(MP_ERROR_TEXT("extra input len != 32"));
         }
 
-        unsigned char extra32_buf[32];
-        memcpy(extra32_buf, (unsigned char *)extra32.buf, 32);
+        uint8_t extra32_buf[32];
+        memcpy(extra32_buf, (uint8_t *)extra32.buf, 32);
         extra_input32 = extra32_buf;
     }
 
