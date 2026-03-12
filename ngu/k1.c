@@ -7,6 +7,7 @@
 // - see test_k1.py
 //
 #include "py/runtime.h"
+#include "py/objlist.h" // For list-related functions
 #include "random.h"
 #include <string.h>
 #include <stdlib.h>
@@ -43,10 +44,48 @@ typedef struct  {
     secp256k1_keypair   keypair;
 } mp_obj_keypair_t;
 
+// MuSig2 types
+typedef struct {
+    mp_obj_base_t base;
+    secp256k1_musig_pubnonce pubnonce;
+} mp_obj_musig_pubnonce_t;
+
+typedef struct {
+    mp_obj_base_t base;
+    secp256k1_musig_secnonce secnonce;
+} mp_obj_musig_secnonce_t;
+
+typedef struct {
+    mp_obj_base_t base;
+    secp256k1_musig_aggnonce aggnonce;
+} mp_obj_musig_aggnonce_t;
+
+typedef struct {
+    mp_obj_base_t base;
+    secp256k1_musig_keyagg_cache keyagg_cache;
+} mp_obj_musig_keyagg_cache_t;
+
+typedef struct {
+    mp_obj_base_t base;
+    secp256k1_musig_session session;
+} mp_obj_musig_session_t;
+
+typedef struct {
+    mp_obj_base_t base;
+    secp256k1_musig_partial_sig sig;
+} mp_obj_musig_partial_sig_t;
+
+
 STATIC const mp_obj_type_t s_pubkey_type;
 STATIC const mp_obj_type_t s_xonly_pubkey_type;
 STATIC const mp_obj_type_t s_sig_type;
 STATIC const mp_obj_type_t s_keypair_type;
+STATIC const mp_obj_type_t s_musig_pubnonce_type;
+STATIC const mp_obj_type_t s_musig_secnonce_type;
+STATIC const mp_obj_type_t s_musig_aggnonce_type;
+STATIC const mp_obj_type_t s_musig_keyagg_cache_type;
+STATIC const mp_obj_type_t s_musig_session_type;
+STATIC const mp_obj_type_t s_musig_partial_sig_type;
 
 // Shared context for all major ops.
 secp256k1_context   *lib_ctx;
@@ -208,6 +247,22 @@ STATIC mp_obj_t s_pubkey_to_bytes(size_t n_args, const mp_obj_t *args) {
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(s_pubkey_to_bytes_obj, 1, 2, s_pubkey_to_bytes);
 
+
+STATIC mp_obj_t s_pubkey_to_xonly(mp_obj_t self_in){
+    mp_obj_pubkey_t *self = MP_OBJ_TO_PTR(self_in);
+
+    mp_obj_xonly_pubkey_t *xonly = m_new_obj(mp_obj_xonly_pubkey_t);
+    xonly->base.type = &s_xonly_pubkey_type;
+
+    int ok = secp256k1_xonly_pubkey_from_pubkey(secp256k1_context_static, &xonly->pubkey, &xonly->parity, &self->pubkey);
+    if (!ok) {
+        mp_raise_ValueError(MP_ERROR_TEXT("secp256k1_xonly_pubkey_from_pubkey"));
+    }
+    return MP_OBJ_FROM_PTR(xonly);
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_1(s_pubkey_to_xonly_obj, s_pubkey_to_xonly);
+
+
 // output xonly pubkey
 STATIC mp_obj_t s_xonly_pubkey_to_bytes(size_t n_args, const mp_obj_t *args) {
     mp_obj_xonly_pubkey_t *self = MP_OBJ_TO_PTR(args[0]);
@@ -355,15 +410,14 @@ STATIC mp_obj_t s_verify_schnorr(mp_obj_t compact_sig_in, mp_obj_t digest_in, mp
         mp_raise_TypeError(MP_ERROR_TEXT("xonly pubkey type"));
     }
 
-    long unsigned int digest_len = 32;
     mp_buffer_info_t digest;
     mp_get_buffer_raise(digest_in, &digest, MP_BUFFER_READ);
-    if(digest.len != digest_len) {
+    if(digest.len != 32) {
         mp_raise_ValueError(MP_ERROR_TEXT("md len != 32"));
     }
 
     mp_obj_xonly_pubkey_t *xonly_pub = MP_OBJ_TO_PTR(xonly_pubkey_in);
-    int ok = secp256k1_schnorrsig_verify(lib_ctx, compact_sig.buf, digest.buf, digest_len, &xonly_pub->pubkey);
+    int ok = secp256k1_schnorrsig_verify(lib_ctx, compact_sig.buf, digest.buf, digest.len, &xonly_pub->pubkey);
     if (ok != 1) {
         mp_raise_ValueError(MP_ERROR_TEXT("secp256k1_schnorrsig_verify"));
     }
@@ -480,7 +534,7 @@ STATIC mp_obj_t s_keypair_pubkey(mp_obj_t self_in) {
         mp_raise_ValueError(MP_ERROR_TEXT("secp256k1_keypair_pub"));
     }
 
-    return rv;
+    return MP_OBJ_FROM_PTR(rv);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(s_keypair_pubkey_obj, s_keypair_pubkey);
 
@@ -498,7 +552,7 @@ STATIC mp_obj_t s_keypair_xonly_pubkey(mp_obj_t self_in) {
         mp_raise_ValueError(MP_ERROR_TEXT("secp256k1_keypair_xonly_pub"));
     }
 
-    return rv;
+    return MP_OBJ_FROM_PTR(rv);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(s_keypair_xonly_pubkey_obj, s_keypair_xonly_pubkey);
 
@@ -532,7 +586,7 @@ STATIC mp_obj_t s_keypair_xonly_tweak_add(mp_obj_t self_in, mp_obj_t tweak32_in)
 		mp_raise_ValueError(MP_ERROR_TEXT("secp256k1_keypair_xonly_tweak_add keypair_sec"));
 	}
 	memcpy(&rv->privkey, seckey, 32);
-    return rv;
+    return MP_OBJ_FROM_PTR(rv);
 
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(s_keypair_xonly_tweak_add_obj, s_keypair_xonly_tweak_add);
@@ -591,6 +645,561 @@ STATIC mp_obj_t s_keypair_ecdh_multiply(mp_obj_t self_in, mp_obj_t other_point_i
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(s_keypair_ecdh_multiply_obj, s_keypair_ecdh_multiply);
 
 
+// MuSig2
+
+STATIC mp_obj_t s_musig_keyagg_cache_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
+    mp_arg_check_num(n_args, n_kw, 0, 0, false);
+    mp_obj_musig_keyagg_cache_t *cache = m_new_obj(mp_obj_musig_keyagg_cache_t);
+	cache->base.type = type;
+
+    return MP_OBJ_FROM_PTR(cache);
+}
+
+
+STATIC mp_obj_t s_musig_pubkey_agg(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
+
+	STATIC const mp_arg_t allowed_args[] = {
+        { MP_QSTR_pubkeys,        MP_ARG_REQUIRED | MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
+        { MP_QSTR_keyagg_cache,                     MP_ARG_OBJ, {.u_obj = mp_const_none} },
+        { MP_QSTR_sort,                             MP_ARG_OBJ, {.u_obj = mp_const_true} },
+    };
+
+    // parse args
+    mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
+    mp_arg_parse_all(n_args, pos_args, kw_args, MP_ARRAY_SIZE(allowed_args), allowed_args, args);
+
+    if (!mp_obj_is_type(args[0].u_obj, &mp_type_list)) {
+        mp_raise_TypeError(MP_ERROR_TEXT("Expected a list object"));
+    }
+    mp_obj_list_t *pubkeys = MP_OBJ_TO_PTR(args[0].u_obj);
+
+    size_t len_pubkeys = pubkeys->len;
+    if (!len_pubkeys){
+        mp_raise_ValueError(MP_ERROR_TEXT("Empty pubkeys list"));
+    }
+
+    // Handle the case where key aggregation cache is not provided
+    // this is allowed when user only wants to aggregate without intention to sign
+    secp256k1_musig_keyagg_cache *keyagg_cache_ptr = NULL;
+    if (args[1].u_obj != mp_const_none) {
+        if(mp_obj_get_type(args[1].u_obj) != &s_musig_keyagg_cache_type) {
+            mp_raise_TypeError(MP_ERROR_TEXT("key aggregation cache type"));
+        }
+        mp_obj_musig_keyagg_cache_t *cache = MP_OBJ_TO_PTR(args[1].u_obj);
+        keyagg_cache_ptr = &cache->keyagg_cache;
+    }
+
+    // remap to array of secp256k1_pubkey pointers
+    const secp256k1_pubkey *pks[len_pubkeys];
+    for (size_t i = 0; i < len_pubkeys; i++) {
+        if(mp_obj_get_type(pubkeys->items[i]) != &s_pubkey_type) {
+            mp_raise_TypeError(MP_ERROR_TEXT("pubkeys: pubkey type"));
+        }
+        mp_obj_pubkey_t *pk = pubkeys->items[i];
+        pks[i] = &pk->pubkey;
+    }
+
+    int ok;
+    // default is to sort the pubkeys - so aggregate key is always the same from same set of keys regardless of order
+    bool sort_pubkeys = (args[2].u_obj == mp_const_true);
+    if (sort_pubkeys){
+        ok = secp256k1_ec_pubkey_sort(secp256k1_context_static, pks, len_pubkeys);
+        if (!ok){
+            mp_raise_ValueError(MP_ERROR_TEXT("secp256k1_ec_pubkey_sort invalid arguments"));
+        }
+    }
+
+    // newly created aggregate x-only pubkey returned by this function
+    mp_obj_xonly_pubkey_t *xonly = m_new_obj(mp_obj_xonly_pubkey_t);
+    xonly->base.type = &s_xonly_pubkey_type;
+
+    ok = secp256k1_musig_pubkey_agg(secp256k1_context_static, &xonly->pubkey, keyagg_cache_ptr,
+                                    pks, len_pubkeys);
+    if (!ok){
+        mp_raise_ValueError(MP_ERROR_TEXT("secp256k1_musig_pubkey_agg invalid arguments"));
+    }
+    return MP_OBJ_FROM_PTR(xonly);
+}
+MP_DEFINE_CONST_FUN_OBJ_KW(s_musig_pubkey_agg_obj, 1, s_musig_pubkey_agg);
+
+
+// when non-xonly aggregate pubkey is needed
+STATIC mp_obj_t s_musig_pubkey_get(mp_obj_t keyagg_cache_in){
+
+    mp_obj_musig_keyagg_cache_t *cache = MP_OBJ_TO_PTR(keyagg_cache_in);
+
+    mp_obj_pubkey_t *pubkey = m_new_obj(mp_obj_pubkey_t);
+    pubkey->base.type = &s_pubkey_type;
+
+    int ok = secp256k1_musig_pubkey_get(secp256k1_context_static, &pubkey->pubkey, &cache->keyagg_cache);
+    if (!ok){
+        mp_raise_ValueError(MP_ERROR_TEXT("secp256k1_musig_pubkey_agg invalid arguments"));
+    }
+    return MP_OBJ_FROM_PTR(pubkey);
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_1(s_musig_pubkey_get_obj, s_musig_pubkey_get);
+
+
+STATIC mp_obj_t s_musig_pubkey_ec_tweak_add(mp_obj_t keyagg_cache_in, mp_obj_t tweak32_in){
+
+    if(mp_obj_get_type(keyagg_cache_in) != &s_musig_keyagg_cache_type) {
+        mp_raise_TypeError(MP_ERROR_TEXT("key aggregation cache type"));
+    }
+
+    mp_obj_musig_keyagg_cache_t *cache = MP_OBJ_TO_PTR(keyagg_cache_in);
+
+    mp_buffer_info_t tweak32;
+    mp_get_buffer_raise(tweak32_in, &tweak32, MP_BUFFER_READ);
+    if(tweak32.len != 32) {
+        mp_raise_ValueError(MP_ERROR_TEXT("tweak32 len != 32"));
+    }
+
+    mp_obj_pubkey_t *res = m_new_obj(mp_obj_pubkey_t);
+    res->base.type = &s_pubkey_type;
+
+    int ok = secp256k1_musig_pubkey_ec_tweak_add(secp256k1_context_static, &res->pubkey,
+                                                 &cache->keyagg_cache, tweak32.buf);
+    if (!ok){
+        mp_raise_ValueError(MP_ERROR_TEXT("secp256k1_musig_pubkey_ec_tweak_add invalid arguments"));
+    }
+
+    return MP_OBJ_FROM_PTR(res);
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_2(s_musig_pubkey_ec_tweak_add_obj, s_musig_pubkey_ec_tweak_add);
+
+
+STATIC mp_obj_t s_musig_pubkey_xonly_tweak_add(mp_obj_t keyagg_cache_in, mp_obj_t tweak32_in){
+
+    if(mp_obj_get_type(keyagg_cache_in) != &s_musig_keyagg_cache_type) {
+        mp_raise_TypeError(MP_ERROR_TEXT("key aggregation cache type"));
+    }
+
+    mp_obj_musig_keyagg_cache_t *cache = MP_OBJ_TO_PTR(keyagg_cache_in);
+
+    mp_buffer_info_t tweak32;
+    mp_get_buffer_raise(tweak32_in, &tweak32, MP_BUFFER_READ);
+    if(tweak32.len != 32) {
+        mp_raise_ValueError(MP_ERROR_TEXT("tweak32 len != 32"));
+    }
+
+    mp_obj_pubkey_t *res = m_new_obj(mp_obj_pubkey_t);
+    res->base.type = &s_pubkey_type;
+
+    int ok = secp256k1_musig_pubkey_xonly_tweak_add(secp256k1_context_static, &res->pubkey,
+                                                    &cache->keyagg_cache, tweak32.buf);
+    if (!ok){
+        mp_raise_ValueError(MP_ERROR_TEXT("secp256k1_musig_pubkey_xonly_tweak_add invalid arguments"));
+    }
+
+    return MP_OBJ_FROM_PTR(res);
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_2(s_musig_pubkey_xonly_tweak_add_obj, s_musig_pubkey_xonly_tweak_add);
+
+
+STATIC mp_obj_t s_musig_nonce_gen(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
+
+	STATIC const mp_arg_t allowed_args[] = {
+        { MP_QSTR_pubkey,         MP_ARG_REQUIRED | MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
+        { MP_QSTR_secrand,                          MP_ARG_OBJ, {.u_obj = mp_const_none} },
+        { MP_QSTR_seckey,                           MP_ARG_OBJ, {.u_obj = mp_const_none} },
+        { MP_QSTR_msg32,                            MP_ARG_OBJ, {.u_obj = mp_const_none} },
+        { MP_QSTR_keyagg_cache,                     MP_ARG_OBJ, {.u_obj = mp_const_none} },
+        { MP_QSTR_extra32,                          MP_ARG_OBJ, {.u_obj = mp_const_none} },
+    };
+
+    // parse args
+    mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
+    mp_arg_parse_all(n_args, pos_args, kw_args, MP_ARRAY_SIZE(allowed_args), allowed_args, args);
+
+    // 1st & only required argument - pubkey
+    if(mp_obj_get_type(args[0].u_obj) != &s_pubkey_type) {
+        mp_raise_TypeError(MP_ERROR_TEXT("pubkey type"));
+    }
+    mp_obj_pubkey_t *pk = MP_OBJ_TO_PTR(args[0].u_obj);
+
+    // 2nd arg - optional - session secrand
+    // must not be reused
+    // buffer is invalidated upon successful execution of this function
+    unsigned char session_secrand[32];
+    if (args[1].u_obj != mp_const_none) {
+        mp_buffer_info_t secrand;
+        mp_get_buffer_raise(args[1].u_obj, &secrand, MP_BUFFER_READ);
+        if(secrand.len != 32) {
+            mp_raise_ValueError(MP_ERROR_TEXT("session secrand len != 32"));
+        }
+        memcpy(session_secrand, (unsigned char *)secrand.buf, 32);
+    } else {
+	    my_random_bytes(session_secrand, 32);
+	}
+
+    // 3rd arg - optional - seckey
+    unsigned char *seckey = NULL;
+    if (args[2].u_obj != mp_const_none) {
+        mp_buffer_info_t sk;
+        mp_get_buffer_raise(args[2].u_obj, &sk, MP_BUFFER_READ);
+        if(sk.len != 32) {
+            mp_raise_ValueError(MP_ERROR_TEXT("seckey len != 32"));
+        }
+
+        unsigned char seckey_buf[32];
+        memcpy(seckey_buf, (unsigned char *)sk.buf, 32);
+        seckey = seckey_buf;
+    }
+
+    // 4th - optional - msg32
+    unsigned char *msg32 = NULL;
+    if (args[3].u_obj != mp_const_none) {
+        mp_buffer_info_t msg;
+        mp_get_buffer_raise(args[3].u_obj, &msg, MP_BUFFER_READ);
+        if(msg.len != 32) {
+            mp_raise_ValueError(MP_ERROR_TEXT("msg len != 32"));
+        }
+
+        unsigned char msg_buf[32];
+        memcpy(msg_buf, (unsigned char *)msg.buf, 32);
+        msg32 = msg_buf;
+    }
+
+	// 5th arg - optional - key aggregation cache
+    secp256k1_musig_keyagg_cache *keyagg_cache_ptr = NULL;
+    if (args[4].u_obj != mp_const_none) {
+        if(mp_obj_get_type(args[4].u_obj) != &s_musig_keyagg_cache_type) {
+            mp_raise_TypeError(MP_ERROR_TEXT("key aggregation cache type"));
+        }
+        mp_obj_musig_keyagg_cache_t *cache = MP_OBJ_TO_PTR(args[4].u_obj);
+        keyagg_cache_ptr = &cache->keyagg_cache;
+    }
+
+    // 6th - optional - extra input32
+    unsigned char *extra_input32 = NULL;
+    if (args[5].u_obj != mp_const_none) {
+        mp_buffer_info_t extra32;
+        mp_get_buffer_raise(args[5].u_obj, &extra32, MP_BUFFER_READ);
+        if(extra32.len != 32) {
+            mp_raise_ValueError(MP_ERROR_TEXT("extra input len != 32"));
+        }
+
+        unsigned char extra32_buf[32];
+        memcpy(extra32_buf, (unsigned char *)extra32.buf, 32);
+        extra_input32 = extra32_buf;
+    }
+
+	// new nonce produced by this function
+	// musig pubnonce
+	mp_obj_musig_secnonce_t *sn = m_new_obj(mp_obj_musig_secnonce_t);
+	sn->base.type = &s_musig_secnonce_type;
+	// musig secnonce
+	mp_obj_musig_pubnonce_t *pn = m_new_obj(mp_obj_musig_pubnonce_t);
+    pn->base.type = &s_musig_pubnonce_type;
+
+	sec_setup_ctx();
+
+    int ok = secp256k1_musig_nonce_gen(lib_ctx, &sn->secnonce, &pn->pubnonce, session_secrand, seckey,
+                                       &pk->pubkey, msg32, keyagg_cache_ptr, extra_input32);
+    if (!ok) {
+        mp_raise_ValueError(MP_ERROR_TEXT("secp256k1_musig_nonce_gen"));
+    }
+    mp_obj_t res[2];
+    res[0] = MP_OBJ_FROM_PTR(sn);
+    res[1] = MP_OBJ_FROM_PTR(pn);
+    return mp_obj_new_tuple(2, res);
+}
+MP_DEFINE_CONST_FUN_OBJ_KW(s_musig_nonce_gen_obj, 1, s_musig_nonce_gen);
+
+
+STATIC mp_obj_t s_pubnonce_to_bytes(mp_obj_t pubnonce_in) {
+    mp_obj_musig_pubnonce_t *self = MP_OBJ_TO_PTR(pubnonce_in);
+
+    vstr_t vstr;
+    vstr_init_len(&vstr, 66);
+
+    secp256k1_musig_pubnonce_serialize(secp256k1_context_static, (uint8_t *)vstr.buf, &self->pubnonce);
+
+    return mp_obj_new_str_from_vstr(&mp_type_bytes, &vstr);
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_1(s_pubnonce_to_bytes_obj, s_pubnonce_to_bytes);
+
+
+// Constructor for pubnonce
+STATIC mp_obj_t s_pubnonce_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
+    mp_arg_check_num(n_args, n_kw, 1, 1, false);
+
+    mp_obj_musig_pubnonce_t *self = m_new_obj(mp_obj_musig_pubnonce_t);
+    self->base.type = type;
+
+    mp_buffer_info_t pubnonce66;
+    mp_get_buffer_raise(args[0], &pubnonce66, MP_BUFFER_READ);
+    if(pubnonce66.len != 66) {
+        mp_raise_ValueError(MP_ERROR_TEXT("musig pubnonce len != 66"));
+    }
+
+    int ok = secp256k1_musig_pubnonce_parse(secp256k1_context_static, &self->pubnonce, pubnonce66.buf);
+
+    if (!ok) {
+        mp_raise_ValueError(MP_ERROR_TEXT("secp256k1_musig_pubnonce_parse"));
+    }
+
+    return MP_OBJ_FROM_PTR(self);
+}
+
+
+STATIC mp_obj_t s_aggnonce_to_bytes(mp_obj_t aggnonce_in) {
+    mp_obj_musig_aggnonce_t *self = MP_OBJ_TO_PTR(aggnonce_in);
+
+    vstr_t vstr;
+    vstr_init_len(&vstr, 66);
+
+    secp256k1_musig_aggnonce_serialize(secp256k1_context_static, (uint8_t *)vstr.buf, &self->aggnonce);
+
+    return mp_obj_new_str_from_vstr(&mp_type_bytes, &vstr);
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_1(s_aggnonce_to_bytes_obj, s_aggnonce_to_bytes);
+
+
+// Constructor for aggregate nonce
+STATIC mp_obj_t s_aggnonce_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
+    mp_arg_check_num(n_args, n_kw, 1, 1, false);
+
+    mp_obj_musig_aggnonce_t *self = m_new_obj(mp_obj_musig_aggnonce_t);
+    self->base.type = type;
+
+    mp_buffer_info_t aggnonce66;
+    mp_get_buffer_raise(args[0], &aggnonce66, MP_BUFFER_READ);
+    if(aggnonce66.len != 66) {
+        mp_raise_ValueError(MP_ERROR_TEXT("musig aggnonce len != 66"));
+    }
+
+    int ok = secp256k1_musig_aggnonce_parse(secp256k1_context_static, &self->aggnonce, aggnonce66.buf);
+
+    if (!ok) {
+        mp_raise_ValueError(MP_ERROR_TEXT("secp256k1_musig_pubnonce_parse"));
+    }
+
+    return MP_OBJ_FROM_PTR(self);
+}
+
+
+STATIC mp_obj_t s_musig_nonce_agg(mp_obj_t pubnonces_in){
+    if (!mp_obj_is_type(pubnonces_in, &mp_type_list)) {
+        mp_raise_TypeError(MP_ERROR_TEXT("Expected a list object"));
+    }
+    mp_obj_list_t *pubnonces = MP_OBJ_TO_PTR(pubnonces_in);
+
+    size_t len_pubnonces = pubnonces->len;
+    if (!len_pubnonces){
+        mp_raise_ValueError(MP_ERROR_TEXT("Empty pubnonces list"));
+    }
+
+    // remap to secp array of pointers
+    const secp256k1_musig_pubnonce *pns[len_pubnonces];
+    for (size_t i = 0; i < len_pubnonces; i++) {
+        if(mp_obj_get_type(pubnonces->items[i]) != &s_musig_pubnonce_type) {
+            mp_raise_TypeError(MP_ERROR_TEXT("pubnonces: pubnonce type"));
+        }
+        mp_obj_musig_pubnonce_t *o = pubnonces->items[i];
+        pns[i] = &o->pubnonce;
+    }
+
+    mp_obj_musig_aggnonce_t *an = m_new_obj(mp_obj_musig_aggnonce_t);
+	an->base.type = &s_musig_aggnonce_type;
+
+    int ok = secp256k1_musig_nonce_agg(secp256k1_context_static, &an->aggnonce, pns, len_pubnonces);
+    if (!ok) {
+        mp_raise_ValueError(MP_ERROR_TEXT("secp256k1_musig_nonce_agg"));
+    }
+
+    return MP_OBJ_FROM_PTR(an);
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_1(s_musig_nonce_agg_obj, s_musig_nonce_agg);
+
+
+STATIC mp_obj_t s_musig_nonce_process(mp_obj_t aggnonce_in, mp_obj_t msg32_in, mp_obj_t keyagg_cache_in){
+
+    if(mp_obj_get_type(aggnonce_in) != &s_musig_aggnonce_type) {
+        mp_raise_TypeError(MP_ERROR_TEXT("aggnonce type"));
+    }
+
+    if(mp_obj_get_type(keyagg_cache_in) != &s_musig_keyagg_cache_type) {
+        mp_raise_TypeError(MP_ERROR_TEXT("key aggregation cache type"));
+    }
+
+    mp_obj_musig_aggnonce_t *an = MP_OBJ_TO_PTR(aggnonce_in);
+
+    mp_buffer_info_t msg32;
+    mp_get_buffer_raise(msg32_in, &msg32, MP_BUFFER_READ);
+    if(msg32.len != 32) {
+        mp_raise_ValueError(MP_ERROR_TEXT("msg len != 32"));
+    }
+
+    mp_obj_musig_keyagg_cache_t *cache = MP_OBJ_TO_PTR(keyagg_cache_in);
+
+    // create musig session
+    mp_obj_musig_session_t *session = m_new_obj(mp_obj_musig_session_t);
+    session->base.type = &s_musig_session_type;
+
+    int ok = secp256k1_musig_nonce_process(secp256k1_context_static, &session->session, &an->aggnonce,
+                                           msg32.buf, &cache->keyagg_cache);
+    if (!ok) {
+        mp_raise_ValueError(MP_ERROR_TEXT("secp256k1_musig_nonce_process invalid arguments"));
+    }
+
+    return MP_OBJ_FROM_PTR(session);
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_3(s_musig_nonce_process_obj, s_musig_nonce_process);
+
+
+// Constructor for musig partial signature
+STATIC mp_obj_t s_musig_partial_sig_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
+    mp_arg_check_num(n_args, n_kw, 1, 1, false);
+
+    mp_obj_musig_partial_sig_t *self = m_new_obj(mp_obj_musig_partial_sig_t);
+    self->base.type = type;
+
+    mp_buffer_info_t part_sig32;
+    mp_get_buffer_raise(args[0], &part_sig32, MP_BUFFER_READ);
+    if(part_sig32.len != 32) {
+        mp_raise_ValueError(MP_ERROR_TEXT("musig partial signature len != 32"));
+    }
+
+    int ok = secp256k1_musig_partial_sig_parse(secp256k1_context_static, &self->sig, part_sig32.buf);
+    if (!ok) {
+        mp_raise_ValueError(MP_ERROR_TEXT("secp256k1_musig_partial_sig_parse"));
+    }
+
+    return MP_OBJ_FROM_PTR(self);
+}
+
+STATIC mp_obj_t s_musig_partial_sig_to_bytes(mp_obj_t part_sig_in) {
+    mp_obj_musig_partial_sig_t *self = MP_OBJ_TO_PTR(part_sig_in);
+
+    vstr_t vstr;
+    vstr_init_len(&vstr, 32);
+
+    secp256k1_musig_partial_sig_serialize(secp256k1_context_static, (uint8_t *)vstr.buf, &self->sig);
+
+    return mp_obj_new_str_from_vstr(&mp_type_bytes, &vstr);
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_1(s_musig_partial_sig_to_bytes_obj, s_musig_partial_sig_to_bytes);
+
+
+STATIC mp_obj_t s_musig_partial_sign(size_t n_args, const mp_obj_t *args){
+
+    if(mp_obj_get_type(args[0]) != &s_musig_secnonce_type) {
+        mp_raise_TypeError(MP_ERROR_TEXT("secnonce type"));
+    }
+
+    if(mp_obj_get_type(args[1]) != &s_keypair_type) {
+        mp_raise_TypeError(MP_ERROR_TEXT("keypair type"));
+    }
+
+    if(mp_obj_get_type(args[2]) != &s_musig_keyagg_cache_type) {
+        mp_raise_TypeError(MP_ERROR_TEXT("key aggregation cache type"));
+    }
+
+    if(mp_obj_get_type(args[3]) != &s_musig_session_type) {
+        mp_raise_TypeError(MP_ERROR_TEXT("session type"));
+    }
+
+    mp_obj_musig_secnonce_t *secnonce = MP_OBJ_TO_PTR(args[0]);
+    mp_obj_keypair_t *keypair = MP_OBJ_TO_PTR(args[1]);
+    mp_obj_musig_keyagg_cache_t *cache = MP_OBJ_TO_PTR(args[2]);
+    mp_obj_musig_session_t *session = MP_OBJ_TO_PTR(args[3]);
+
+    // new musig partial signature
+    mp_obj_musig_partial_sig_t *res = m_new_obj(mp_obj_musig_partial_sig_t);
+    res->base.type = &s_musig_partial_sig_type;
+
+    sec_setup_ctx();
+
+    int ok = secp256k1_musig_partial_sign(lib_ctx, &res->sig, &secnonce->secnonce, &keypair->keypair,
+                                          &cache->keyagg_cache, &session->session);
+    if (!ok) {
+        mp_raise_ValueError(MP_ERROR_TEXT("secp256k1_musig_partial_sign invalid arguments or secnonce reuse"));
+    }
+
+    return MP_OBJ_FROM_PTR(res);
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(s_musig_partial_sign_obj, 4, 4, s_musig_partial_sign);
+
+
+// verify musig partial sig
+STATIC mp_obj_t s_musig_partial_sig_verify(size_t n_args, const mp_obj_t *args)
+{
+    // no need to verify partial sig type as it this is method of the object
+    if(mp_obj_get_type(args[1]) != &s_musig_pubnonce_type) {
+        mp_raise_TypeError(MP_ERROR_TEXT("pubnonce type"));
+    }
+
+    if(mp_obj_get_type(args[2]) != &s_pubkey_type) {
+        mp_raise_TypeError(MP_ERROR_TEXT("pubkey type"));
+    }
+
+    if(mp_obj_get_type(args[3]) != &s_musig_keyagg_cache_type) {
+        mp_raise_TypeError(MP_ERROR_TEXT("key aggregation cache type"));
+    }
+
+    if(mp_obj_get_type(args[4]) != &s_musig_session_type) {
+        mp_raise_TypeError(MP_ERROR_TEXT("session type"));
+    }
+
+    mp_obj_musig_partial_sig_t *self = MP_OBJ_TO_PTR(args[0]);
+    mp_obj_musig_pubnonce_t *pubnonce = MP_OBJ_TO_PTR(args[1]);
+    mp_obj_pubkey_t *pubkey = MP_OBJ_TO_PTR(args[2]);
+    mp_obj_musig_keyagg_cache_t *cache = MP_OBJ_TO_PTR(args[3]);
+    mp_obj_musig_session_t *session = MP_OBJ_TO_PTR(args[4]);
+
+    int ok = secp256k1_musig_partial_sig_verify(lib_ctx, &self->sig, &pubnonce->pubnonce, &pubkey->pubkey,
+                                                &cache->keyagg_cache, &session->session);
+    if (!ok) {
+        mp_raise_ValueError(MP_ERROR_TEXT("secp256k1_musig_partial_sig_verify"));
+    }
+
+    return mp_obj_new_int(ok);
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(s_musig_partial_sig_verify_obj, 5, 5, s_musig_partial_sig_verify);
+
+
+STATIC mp_obj_t s_musig_partial_sig_agg(mp_obj_t part_sigs_in, mp_obj_t session_in){
+
+    if (!mp_obj_is_type(part_sigs_in, &mp_type_list)) {
+        mp_raise_TypeError(MP_ERROR_TEXT("Expected a list object"));
+    }
+    mp_obj_list_t *part_sigs = MP_OBJ_TO_PTR(part_sigs_in);
+
+    size_t len_part_sigs = part_sigs->len;
+    if (!len_part_sigs){
+        mp_raise_ValueError(MP_ERROR_TEXT("Empty partial sigs list"));
+    }
+
+    // remap to secp array of pointers
+    const secp256k1_musig_partial_sig *ps[len_part_sigs];
+    for (size_t i = 0; i < len_part_sigs; i++) {
+        if(mp_obj_get_type(part_sigs->items[i]) != &s_musig_partial_sig_type) {
+            mp_raise_TypeError(MP_ERROR_TEXT("part_sigs: part sig type"));
+        }
+        mp_obj_musig_partial_sig_t *o = part_sigs->items[i];
+        ps[i] = &o->sig;
+    }
+
+    if(mp_obj_get_type(session_in) != &s_musig_session_type) {
+        mp_raise_TypeError(MP_ERROR_TEXT("session type"));
+    }
+
+    mp_obj_musig_session_t *session = MP_OBJ_TO_PTR(session_in);
+
+    vstr_t res;
+    vstr_init_len(&res, 64);
+
+    int ok = secp256k1_musig_partial_sig_agg(lib_ctx, (uint8_t *)res.buf, &session->session, ps, len_part_sigs);
+    if (!ok) {
+        mp_raise_ValueError(MP_ERROR_TEXT("secp256k1_musig_partial_sig_agg invalid arguments"));
+    }
+
+    return mp_obj_new_str_from_vstr(&mp_type_bytes, &res);
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_2(s_musig_partial_sig_agg_obj, s_musig_partial_sig_agg);
+
+
 // sigs and what you can do with them
 STATIC const mp_rom_map_elem_t s_sig_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR_to_bytes), MP_ROM_PTR(&s_sig_to_bytes_obj) },
@@ -605,10 +1214,24 @@ STATIC const mp_obj_type_t s_sig_type = {
     .locals_dict = (void *)&s_sig_locals_dict,
 };
 
+// musig partial signature
+STATIC const mp_rom_map_elem_t s_musig_partial_sig_locals_dict_table[] = {
+    { MP_ROM_QSTR(MP_QSTR_to_bytes), MP_ROM_PTR(&s_musig_partial_sig_to_bytes_obj) },
+    { MP_ROM_QSTR(MP_QSTR_verify), MP_ROM_PTR(&s_musig_partial_sig_verify_obj) },
+};
+STATIC MP_DEFINE_CONST_DICT(s_musig_partial_sig_locals_dict, s_musig_partial_sig_locals_dict_table);
+
+STATIC const mp_obj_type_t s_musig_partial_sig_type = {
+    { &mp_type_type },
+    .name = MP_QSTR_secp256k1_musig_partial_sig,
+    .make_new = s_musig_partial_sig_make_new,
+    .locals_dict = (void *)&s_musig_partial_sig_locals_dict,
+};
 
 // pubkeys and what you can do with them
 STATIC const mp_rom_map_elem_t s_pubkey_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR_to_bytes), MP_ROM_PTR(&s_pubkey_to_bytes_obj) },
+    { MP_ROM_QSTR(MP_QSTR_to_xonly), MP_ROM_PTR(&s_pubkey_to_xonly_obj) },
 };
 STATIC MP_DEFINE_CONST_DICT(s_pubkey_locals_dict, s_pubkey_locals_dict_table);
 
@@ -631,6 +1254,54 @@ STATIC const mp_obj_type_t s_xonly_pubkey_type = {
     .name = MP_QSTR_secp256k1_xonly_pubkey,
     .make_new = s_xonly_pubkey_make_new,
     .locals_dict = (void *)&s_xonly_pubkey_locals_dict,
+};
+
+// musig opaque
+STATIC const mp_obj_type_t s_musig_session_type = {
+    { &mp_type_type },
+    .name = MP_QSTR_secp256k1_musig_session,
+};
+
+STATIC const mp_rom_map_elem_t s_musig_keyagg_cache_locals_dict_table[] = {
+    { MP_ROM_QSTR(MP_QSTR_agg_pubkey), MP_ROM_PTR(&s_musig_pubkey_get_obj) },
+};
+STATIC MP_DEFINE_CONST_DICT(s_musig_keyagg_cache_locals_dict, s_musig_keyagg_cache_locals_dict_table);
+
+STATIC const mp_obj_type_t s_musig_keyagg_cache_type = {
+    { &mp_type_type },
+    .name = MP_QSTR_secp256k1_musig_keyagg_cache,
+    .make_new = s_musig_keyagg_cache_make_new,
+    .locals_dict = (void *)&s_musig_keyagg_cache_locals_dict,
+};
+
+// musig nonces
+STATIC const mp_rom_map_elem_t s_musig_pubnonce_locals_dict_table[] = {
+    { MP_ROM_QSTR(MP_QSTR_to_bytes), MP_ROM_PTR(&s_pubnonce_to_bytes_obj) },
+};
+STATIC MP_DEFINE_CONST_DICT(s_musig_pubnonce_locals_dict, s_musig_pubnonce_locals_dict_table);
+
+STATIC const mp_obj_type_t s_musig_pubnonce_type = {
+    { &mp_type_type },
+    .name = MP_QSTR_secp256k1_musig_pubnonce,
+    .make_new = s_pubnonce_make_new,
+    .locals_dict = (void *)&s_musig_pubnonce_locals_dict,
+};
+
+STATIC const mp_rom_map_elem_t s_musig_aggnonce_locals_dict_table[] = {
+    { MP_ROM_QSTR(MP_QSTR_to_bytes), MP_ROM_PTR(&s_aggnonce_to_bytes_obj) },
+};
+STATIC MP_DEFINE_CONST_DICT(s_musig_aggnonce_locals_dict, s_musig_aggnonce_locals_dict_table);
+
+STATIC const mp_obj_type_t s_musig_aggnonce_type = {
+    { &mp_type_type },
+    .name = MP_QSTR_secp256k1_musig_aggnonce,
+    .make_new = s_aggnonce_make_new,
+    .locals_dict = (void *)&s_musig_aggnonce_locals_dict,
+};
+
+STATIC const mp_obj_type_t s_musig_secnonce_type = {
+    { &mp_type_type },
+    .name = MP_QSTR_secp256k1_musig_secnonce,
 };
 
 // privkeys and what you can do with them
@@ -662,6 +1333,19 @@ STATIC const mp_rom_map_elem_t globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_sign_schnorr), MP_ROM_PTR(&s_sign_schnorr_obj) },
     { MP_ROM_QSTR(MP_QSTR_verify_schnorr), MP_ROM_PTR(&s_verify_schnorr_obj) },
     { MP_ROM_QSTR(MP_QSTR_ctx_rnd), MP_ROM_PTR(&s_ctx_rnd_obj) },
+
+    { MP_ROM_QSTR(MP_QSTR_MusigKeyAggCache), MP_ROM_PTR(&s_musig_keyagg_cache_type) },
+    { MP_ROM_QSTR(MP_QSTR_musig_nonce_gen), MP_ROM_PTR(&s_musig_nonce_gen_obj) },
+    { MP_ROM_QSTR(MP_QSTR_MusigPubNonce), MP_ROM_PTR(&s_musig_pubnonce_type) },
+    { MP_ROM_QSTR(MP_QSTR_musig_nonce_agg), MP_ROM_PTR(&s_musig_nonce_agg_obj) },
+    { MP_ROM_QSTR(MP_QSTR_MusigAggNonce), MP_ROM_PTR(&s_musig_aggnonce_type) },
+    { MP_ROM_QSTR(MP_QSTR_MusigPartSig), MP_ROM_PTR(&s_musig_partial_sig_type) },
+    { MP_ROM_QSTR(MP_QSTR_musig_pubkey_agg), MP_ROM_PTR(&s_musig_pubkey_agg_obj) },
+    { MP_ROM_QSTR(MP_QSTR_musig_pubkey_ec_tweak_add), MP_ROM_PTR(&s_musig_pubkey_ec_tweak_add_obj) },
+    { MP_ROM_QSTR(MP_QSTR_musig_pubkey_xonly_tweak_add), MP_ROM_PTR(&s_musig_pubkey_xonly_tweak_add_obj) },
+    { MP_ROM_QSTR(MP_QSTR_musig_nonce_process), MP_ROM_PTR(&s_musig_nonce_process_obj) },
+    { MP_ROM_QSTR(MP_QSTR_musig_partial_sign), MP_ROM_PTR(&s_musig_partial_sign_obj) },
+    { MP_ROM_QSTR(MP_QSTR_musig_partial_sig_agg), MP_ROM_PTR(&s_musig_partial_sig_agg_obj) },
 };
 
 STATIC MP_DEFINE_CONST_DICT(globals_table_obj, globals_table);

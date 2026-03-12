@@ -23,6 +23,9 @@
 /* Define this symbol to enable the schnorrsig module */
 #define ENABLE_MODULE_SCHNORRSIG 1
 
+/* Define this symbol to enable the musig module */
+#define ENABLE_MODULE_MUSIG 1
+
 #define USE_EXTERNAL_DEFAULT_CALLBACKS
 
 # include "src/secp256k1.c"
