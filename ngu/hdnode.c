@@ -98,7 +98,22 @@ mp_obj_t hdnode_deserialize_bytes(mp_obj_hdnode_t *self, uint8_t *p) {
 
     if(p[0] == 0x00) {
         /* mainnet/testnet private */
-        assert((version == 0x0488ADE4) || (version == 0x04358394));
+        switch (version) {
+            case 0x0488ade4:  // xprv
+            case 0x04358394:  // tprv
+            case 0x049d7878:  // yprv
+            case 0x044a4e28:  // uprv
+            case 0x04b2430c:  // zprv
+            case 0x045f18bc:  // vprv
+            case 0x0295b005:  // Yprv
+            case 0x024285b5:  // Uprv
+            case 0x02aa7a99:  // Zprv
+            case 0x02575048:  // Vprv
+                break;
+            default:
+                goto fail;
+                break;
+        }
         p++;
         memcpy(self->privkey, p, 32);
         p += 32;
@@ -106,7 +121,22 @@ mp_obj_t hdnode_deserialize_bytes(mp_obj_hdnode_t *self, uint8_t *p) {
         _calc_pubkey(self);
     } else if(p[0] == 0x02 || p[0] == 0x3) {
         /* mainnet/testnet public */
-        assert((version == 0x0488B21E) || (version == 0x043587CF));
+        switch (version) {
+            case 0x0488b21e:  // xpub
+            case 0x043587cf:  // tpub
+            case 0x049d7cb2:  // ypub
+            case 0x044a5262:  // upub
+            case 0x04b24746:  // zpub
+            case 0x045f1cf6:  // vpub
+            case 0x0295b43f:  // Ypub
+            case 0x024289ef:  // Upub
+            case 0x02aa7ed3:  // Zpub
+            case 0x02575483:  // Vpub
+                break;
+            default:
+                goto fail;
+                break;
+        }
         // 33 bytes of pubkey
         self->have_private = false;
         memcpy(self->pubkey, p, 33);
