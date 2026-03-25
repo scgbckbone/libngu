@@ -803,7 +803,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_2(s_musig_pubkey_xonly_tweak_add_obj, s_musig_pub
 STATIC mp_obj_t s_musig_nonce_gen(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
 
 	STATIC const mp_arg_t allowed_args[] = {
-        { MP_QSTR_pubkey,         MP_ARG_REQUIRED | MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
+        { MP_QSTR_pubkey,         MP_ARG_REQUIRED | MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL}   },
         { MP_QSTR_secrand,                          MP_ARG_OBJ, {.u_obj = mp_const_none} },
         { MP_QSTR_seckey,                           MP_ARG_OBJ, {.u_obj = mp_const_none} },
         { MP_QSTR_msg32,                            MP_ARG_OBJ, {.u_obj = mp_const_none} },
@@ -838,28 +838,26 @@ STATIC mp_obj_t s_musig_nonce_gen(size_t n_args, const mp_obj_t *pos_args, mp_ma
 
     // 3rd arg - optional - seckey
     uint8_t *seckey = NULL;
+    uint8_t seckey_buf[32];
     if (args[2].u_obj != mp_const_none) {
         mp_buffer_info_t sk;
         mp_get_buffer_raise(args[2].u_obj, &sk, MP_BUFFER_READ);
         if(sk.len != 32) {
             mp_raise_ValueError(MP_ERROR_TEXT("seckey len != 32"));
         }
-
-        uint8_t seckey_buf[32];
         memcpy(seckey_buf, (uint8_t *)sk.buf, 32);
         seckey = seckey_buf;
     }
 
     // 4th - optional - msg32
     uint8_t *msg32 = NULL;
+    uint8_t msg_buf[32];
     if (args[3].u_obj != mp_const_none) {
         mp_buffer_info_t msg;
         mp_get_buffer_raise(args[3].u_obj, &msg, MP_BUFFER_READ);
         if(msg.len != 32) {
             mp_raise_ValueError(MP_ERROR_TEXT("msg len != 32"));
         }
-
-        uint8_t msg_buf[32];
         memcpy(msg_buf, (uint8_t *)msg.buf, 32);
         msg32 = msg_buf;
     }
@@ -876,14 +874,13 @@ STATIC mp_obj_t s_musig_nonce_gen(size_t n_args, const mp_obj_t *pos_args, mp_ma
 
     // 6th - optional - extra input32
     uint8_t *extra_input32 = NULL;
+    uint8_t extra32_buf[32];
     if (args[5].u_obj != mp_const_none) {
         mp_buffer_info_t extra32;
         mp_get_buffer_raise(args[5].u_obj, &extra32, MP_BUFFER_READ);
         if(extra32.len != 32) {
             mp_raise_ValueError(MP_ERROR_TEXT("extra input len != 32"));
         }
-
-        uint8_t extra32_buf[32];
         memcpy(extra32_buf, (uint8_t *)extra32.buf, 32);
         extra_input32 = extra32_buf;
     }
