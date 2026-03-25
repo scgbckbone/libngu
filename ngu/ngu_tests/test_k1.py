@@ -183,95 +183,132 @@ for i in range(50):
     got.add(bs)
     assert p1.pubkey()
 
-
-# musig
-
+#
+# MuSig2
+#
 msg = 32*b"b"
 tweak_bip32 = 32*b"a"
 xonly_tweak = 32*b"c"
-keyagg_cache = ngu.secp256k1.MusigKeyAggCache()
 
-# not possible to get aggregate key from cache before aggregation happens
-try:
-    x = keyagg_cache.agg_pubkey()
-    raise RuntimeError
-except ValueError: pass
-
-signer_data = []
+signers = []
 for i in range(10):
     kp = ngu.secp256k1.keypair()
+    signers.append(kp)
+
+signer_pubkeys = [s.pubkey() for s in signers]
+
+# 1st round
+sec_rands = []
+pubnonces = []
+agg_keys = set()
+agg_der_keys = set()
+for kp in signers:
+    kac = ngu.secp256k1.MusigKeyAggCache()
+
+    # not possible to get aggregate key from cache before aggregation happens
+    try:
+        x = kac.agg_pubkey()
+        raise RuntimeError
+    except ValueError:
+        pass
+
+    agg_xonly = ngu.secp256k1.musig_pubkey_agg(signer_pubkeys, kac)
+
+    # ability to get proper non-xonly aggregate pubkey
+    agg_non_xonly = kac.agg_pubkey()
+    assert agg_non_xonly.to_xonly().to_bytes() == agg_xonly.to_bytes()
+    agg_keys.add(agg_non_xonly.to_bytes())
+
+    # key aggregation cache is optional, if user does not intend to sign
+    agg_xonly1 = ngu.secp256k1.musig_pubkey_agg(signer_pubkeys, None)
+    assert agg_xonly.to_bytes() == agg_xonly1.to_bytes()
+
+    # without sorting (that happens by default) - aggregate key will be different
+    agg_xonly2 = ngu.secp256k1.musig_pubkey_agg(signer_pubkeys, None, False)  # last bool arg is for pubkey sorting
+    assert agg_xonly2.to_bytes() != agg_xonly.to_bytes()
+
+    tweaked_pk1 = ngu.secp256k1.musig_pubkey_xonly_tweak_add(kac, xonly_tweak)
+    assert isinstance(tweaked_pk1, ngu.secp256k1.pubkey)
+
+    tweaked_pk = ngu.secp256k1.musig_pubkey_ec_tweak_add(kac, tweak_bip32)
+    assert isinstance(tweaked_pk, ngu.secp256k1.pubkey)
+
+    agg_der_keys.add(kac.agg_pubkey().to_bytes())
+
+    sec_rand = ngu.random.bytes(32)
+    sec_rands.append(sec_rand)
     pk = kp.pubkey()
-    # onyl required arguemnt here is pubkey (first argument)
+    # only required arguemnt here is pubkey (first argument)
     sn, pn = ngu.secp256k1.musig_nonce_gen(pk)
     # musig_nonce_gen uses RNG for secrand if secrand is not provided (safest way)
-    sn, pn = ngu.secp256k1.musig_nonce_gen(pk, ngu.random.bytes(32))
+    sn, pn = ngu.secp256k1.musig_nonce_gen(pk, sec_rand)
     # optionally one can also add secret key, MUST be the one sued for signing that corresponds to pk arg
-    sn, pn = ngu.secp256k1.musig_nonce_gen(pk, ngu.random.bytes(32), kp.privkey())
-    # optionally msg to be signed can be added - if already known
-    sn, pn = ngu.secp256k1.musig_nonce_gen(pk, ngu.random.bytes(32), kp.privkey(), msg)
+    sn, pn = ngu.secp256k1.musig_nonce_gen(pk, sec_rand, kp.privkey())
     # extra randomness for nonce derivation function
     # None is for optional key aggregation cache, but uninitialized key agg cache is not allowed
-    sn, pn = ngu.secp256k1.musig_nonce_gen(pk, ngu.random.bytes(32), kp.privkey(), msg, None, ngu.random.bytes(32))
+    sn, pn = ngu.secp256k1.musig_nonce_gen(pk, sec_rand, kp.privkey(), msg, None, ngu.random.bytes(32))
+    # optionally msg to be signed can be added - if already known
+    sn, pn = ngu.secp256k1.musig_nonce_gen(pk, sec_rand, kp.privkey(), msg)
 
     pubnonce_bytes = pn.to_bytes()
     assert len(pubnonce_bytes) == 66
     pn1 = ngu.secp256k1.MusigPubNonce(pubnonce_bytes)
     assert pn1.to_bytes() == pubnonce_bytes
-    signer_data.append((kp, sn, pn))
+    pubnonces.append(pn)
 
-signer_pubkeys = [s[0].pubkey() for s in signer_data]
 
-agg_xonly = ngu.secp256k1.musig_pubkey_agg(signer_pubkeys, keyagg_cache)
+assert len(agg_keys) == 1
+assert len(agg_der_keys) == 1
 
-# ability to get proper non-xonly aggregate pubkey
-agg_non_xonly = keyagg_cache.agg_pubkey()
-assert agg_non_xonly.to_xonly().to_bytes() == agg_xonly.to_bytes()
 
-# key aggregation cache is optional, if user does not intend to sign
-agg_xonly1 = ngu.secp256k1.musig_pubkey_agg(signer_pubkeys, None)
-assert agg_xonly.to_bytes() == agg_xonly1.to_bytes()
-
-# without sorting (that happens by default) - aggregate key will be different
-agg_xonly2 = ngu.secp256k1.musig_pubkey_agg(signer_pubkeys, None, False)  # last bool arg is for pubkey sorting
-assert agg_xonly2.to_bytes() != agg_xonly.to_bytes()
-
-tweaked_pk1 = ngu.secp256k1.musig_pubkey_xonly_tweak_add(keyagg_cache, xonly_tweak)
-assert isinstance(tweaked_pk1, ngu.secp256k1.pubkey)
-
-tweaked_pk = ngu.secp256k1.musig_pubkey_ec_tweak_add(keyagg_cache, tweak_bip32)
-assert isinstance(tweaked_pk, ngu.secp256k1.pubkey)
-
-# aggregate pubnonces
-pubnonces = [tup[2] for tup in signer_data]
-aggnonce = ngu.secp256k1.musig_nonce_agg(pubnonces)
-aggnonce_bytes = aggnonce.to_bytes()
-an1 = ngu.secp256k1.MusigAggNonce(aggnonce_bytes)
-assert an1.to_bytes() == aggnonce_bytes
-
+# 2nd round
 partial_signatures = []
-for kp, sn, pn in signer_data:
-    session = ngu.secp256k1.musig_nonce_process(aggnonce, msg, keyagg_cache)
-    partial_signature = ngu.secp256k1.musig_partial_sign(sn, kp, keyagg_cache, session)
+sessions = []
+agg_nonces = set()
+for kp, sr, pn in zip(signers, sec_rands, pubnonces):
+    # re-initialize the cache
+    kac = ngu.secp256k1.MusigKeyAggCache()
+    ngu.secp256k1.musig_pubkey_agg(signer_pubkeys, kac)
+    ngu.secp256k1.musig_pubkey_xonly_tweak_add(kac, xonly_tweak)
+    ngu.secp256k1.musig_pubkey_ec_tweak_add(kac, tweak_bip32)
+    assert kac.agg_pubkey().to_bytes() == list(agg_der_keys)[0]
+    sn, pn_target = ngu.secp256k1.musig_nonce_gen(kp.pubkey(), sr, kp.privkey(), msg)
+    assert pn.to_bytes() == pn_target.to_bytes()
+
+    # aggregate pubnonces
+    aggnonce = ngu.secp256k1.musig_nonce_agg(pubnonces)
+    aggnonce_bytes = aggnonce.to_bytes()
+    an1 = ngu.secp256k1.MusigAggNonce(aggnonce_bytes)
+    assert an1.to_bytes() == aggnonce_bytes
+    agg_nonces.add(aggnonce_bytes)
+
+    session = ngu.secp256k1.musig_nonce_process(aggnonce, msg, kac)
+    sessions.append(session)
+    partial_signature = ngu.secp256k1.musig_partial_sign(sn, kp, kac, session)
 
     # re-sign with the same secnonce causes error
     try:
-        ngu.secp256k1.musig_partial_sign(sn, kp, keyagg_cache, session)
+        ngu.secp256k1.musig_partial_sign(sn, kp, kac, session)
         raise RuntimeError
     except ValueError: pass
 
     part_sig_bytes = partial_signature.to_bytes()
     assert ngu.secp256k1.MusigPartSig(part_sig_bytes).to_bytes() == part_sig_bytes
 
-    assert partial_signature.verify(pn, kp.pubkey(), keyagg_cache, session)
+    assert partial_signature.verify(pn_target, kp.pubkey(), kac, session)
 
     partial_signatures.append(partial_signature)
 
 
-agg_sig = ngu.secp256k1.musig_partial_sig_agg(partial_signatures, session)
-assert len(agg_sig) == 64
+assert len(agg_nonces) == 1
 
-# verify aggregate signature against aggregate tweaked pubkey
-assert ngu.secp256k1.verify_schnorr(agg_sig, msg, tweaked_pk.to_xonly())
+for user_session in sessions:
+    agg_sig = ngu.secp256k1.musig_partial_sig_agg(partial_signatures, user_session)
+    assert len(agg_sig) == 64
+
+    # verify aggregate signature against aggregate tweaked pubkey
+    target_pk = ngu.secp256k1.pubkey(list(agg_der_keys)[0])
+    assert ngu.secp256k1.verify_schnorr(agg_sig, msg, target_pk.to_xonly())
 
 
 # musig type checks
