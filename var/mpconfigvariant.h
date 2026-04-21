@@ -9,6 +9,8 @@
 #define MICROPY_PY_BUILTINS_BYTES_HEX       (1)
 #define MICROPY_PY_UCTYPES                  (1)
 #define MICROPY_PY_HASHLIB                  (1)
+#define MICROPY_PY_DEFLATE                  (1)
+#define MICROPY_PY_DEFLATE_COMPRESS         (1)
 
 #define MICROPY_FLOAT_IMPL                  (MICROPY_FLOAT_IMPL_DOUBLE)
 #define MICROPY_LONGINT_IMPL                (MICROPY_LONGINT_IMPL_MPZ)
