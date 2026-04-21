@@ -55,6 +55,6 @@ const mp_obj_module_t mp_module_ngu = {
     .globals = (mp_obj_dict_t *)&mp_module_ngu_globals,
 };
 
-MP_REGISTER_MODULE(MP_QSTR_ngu, mp_module_ngu, 1);
+MP_REGISTER_MODULE(MP_QSTR_ngu, mp_module_ngu);
 
 
