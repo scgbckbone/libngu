@@ -50,7 +50,6 @@ STATIC mp_obj_t modngu_hash_sha512_make_new(const mp_obj_type_t *type, size_t n_
     size_t n = (sizeof(mbedtls_sha512_context) + sizeof(uintptr_t) - 1) / sizeof(uintptr_t);
     mp_obj_hash_t *o = m_new_obj_var(mp_obj_hash_t, state, uintptr_t, n);
     o->base.type = type;
-    o->final = false;                                      // ← REQUIRED in v1.28+
 
     mbedtls_sha512_init((mbedtls_sha512_context *)o->state);
     mbedtls_sha512_starts_ret((mbedtls_sha512_context *)o->state, false);
@@ -59,7 +58,6 @@ STATIC mp_obj_t modngu_hash_sha512_make_new(const mp_obj_type_t *type, size_t n_
     size_t n = (sizeof(cf_sha512_context) + sizeof(uintptr_t) - 1) / sizeof(uintptr_t);
     mp_obj_hash_t *o = m_new_obj_var(mp_obj_hash_t, state, uintptr_t, n);
     o->base.type = type;
-    o->final = false;                                      // ← REQUIRED in v1.28+
 
     cf_sha512_init((cf_sha512_context *)o->state);
 #endif
