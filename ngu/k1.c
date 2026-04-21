@@ -7,6 +7,7 @@
 // - see test_k1.py
 //
 #include "py/runtime.h"
+#include "py/objmodule.h"  // needed for mp_obj_module_get_globals
 #include "py/objlist.h" // For list-related functions
 #include "random.h"
 #include <string.h>
@@ -19,7 +20,7 @@
 #if MICROPY_SSL_MBEDTLS
 #include "mbedtls/sha256.h"
 #else
-#include "extmod/crypto-algorithms/sha256.h"
+#include "lib/crypto-algorithms/sha256.h"
 #endif
 
 typedef struct  {
@@ -595,10 +596,10 @@ static int _my_ecdh_hash(uint8_t *output, const uint8_t *x32, const uint8_t *y32
     mbedtls_sha256_context ctx;
 
     mbedtls_sha256_init(&ctx);
-    mbedtls_sha256_starts_ret(&ctx, 0);
-    mbedtls_sha256_update_ret(&ctx, x32, 32);
-    mbedtls_sha256_update_ret(&ctx, y32, 32);
-    mbedtls_sha256_finish_ret(&ctx, output);
+    mbedtls_sha256_starts(&ctx, 0);
+    mbedtls_sha256_update(&ctx, x32, 32);
+    mbedtls_sha256_update(&ctx, y32, 32);
+    mbedtls_sha256_finish(&ctx, output);
     mbedtls_sha256_free(&ctx);
 
 #else

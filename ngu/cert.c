@@ -105,16 +105,17 @@ static mp_obj_t get_ec_pubkey(mp_obj_t self_in)
         mp_raise_TypeError(MP_ERROR_TEXT("only EC for now"));
     }
 
-    uint8_t rv[65];
+    unsigned char pk_buf[65];
 
     const mbedtls_ecp_keypair *pair = mbedtls_pk_ec(*pk);
     size_t actual = 0;
-    CHECK_RESULT(mbedtls_ecp_point_write_binary(&pair->grp, &pair->Q,
-                        MBEDTLS_ECP_PF_UNCOMPRESSED, &actual, rv, 65));
+
+    CHECK_RESULT(mbedtls_ecp_point_write_binary(&pair->MBEDTLS_PRIVATE(grp), &pair->MBEDTLS_PRIVATE(Q),
+                        MBEDTLS_ECP_PF_UNCOMPRESSED, &actual, pk_buf, 65));
 
     assert(actual == 65);
 
-    return mp_obj_new_bytes(rv, 65);
+    return mp_obj_new_bytes(pk_buf, 65);
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(get_ec_pubkey_obj, get_ec_pubkey);
 

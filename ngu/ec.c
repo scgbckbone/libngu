@@ -14,6 +14,9 @@
 
 #include "mbedtls/ecp.h"
 #include "mbedtls/ecdsa.h"
+#include "mbedtls/md.h"
+#include "mbedtls/entropy.h"
+#include "mbedtls/ctr_drbg.h"
 
 #ifndef MBEDTLS_ECP_C
 # error "requires MBEDTLS_ECP_C"
@@ -80,8 +83,19 @@ static mp_obj_t curve_sign(mp_obj_t self_in, mp_obj_t privkey_in, mp_obj_t diges
 
     CHECK_RESULT(mbedtls_mpi_read_binary(&privkey, pk_buf.buf, 32));
 
-    CHECK_RESULT(mbedtls_ecdsa_sign_det(&self->grp, &r, &s, &privkey, digest.buf, digest.len, MBEDTLS_MD_SHA256));
+    mbedtls_entropy_context entropy;
+    mbedtls_ctr_drbg_context ctr_drbg;
+    mbedtls_entropy_init(&entropy);
+    mbedtls_ctr_drbg_init(&ctr_drbg);
+    CHECK_RESULT(mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, NULL, 0));
 
+    CHECK_RESULT(mbedtls_ecdsa_sign_det_ext(&self->grp, &r, &s, &privkey,
+                                digest.buf, digest.len,
+                                MBEDTLS_MD_SHA256,
+                                mbedtls_ctr_drbg_random, &ctr_drbg));
+
+    mbedtls_ctr_drbg_free(&ctr_drbg);
+    mbedtls_entropy_free(&entropy);
     mbedtls_mpi_free(&privkey);
 
     // convert (R,S) output pair to 64 bytes

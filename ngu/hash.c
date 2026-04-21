@@ -42,6 +42,20 @@ void ripemd160(const uint8_t *msg, int msglen, uint8_t digest[20]);
 // SHA512
 //
 
+static mp_obj_t modngu_hash_sha512_update(mp_obj_t self_in, mp_obj_t arg) {
+    mp_obj_hash_t *self = MP_OBJ_TO_PTR(self_in);
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(arg, &bufinfo, MP_BUFFER_READ);
+
+#if MICROPY_SSL_MBEDTLS
+    mbedtls_sha512_update((mbedtls_sha512_context *)self->state, bufinfo.buf, bufinfo.len);
+#else
+    cf_sha512_update((cf_sha512_context *)self->state, bufinfo.buf, bufinfo.len);
+#endif
+
+    return mp_const_none;
+}
+
 static mp_obj_t modngu_hash_sha512_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
     mp_arg_check_num(n_args, n_kw, 0, 1, false);
 
@@ -52,7 +66,7 @@ static mp_obj_t modngu_hash_sha512_make_new(const mp_obj_type_t *type, size_t n_
     o->base.type = type;
 
     mbedtls_sha512_init((mbedtls_sha512_context *)o->state);
-    mbedtls_sha512_starts_ret((mbedtls_sha512_context *)o->state, false);
+    mbedtls_sha512_starts((mbedtls_sha512_context *)o->state, false);
 #else
     // Same pattern for the tinycrypt/cf fallback
     size_t n = (sizeof(cf_sha512_context) + sizeof(uintptr_t) - 1) / sizeof(uintptr_t);
@@ -69,30 +83,16 @@ static mp_obj_t modngu_hash_sha512_make_new(const mp_obj_type_t *type, size_t n_
     return MP_OBJ_FROM_PTR(o);
 }
 
-static mp_obj_t modngu_hash_sha512_update(mp_obj_t self_in, mp_obj_t arg) {
-    mp_obj_hash_t *self = MP_OBJ_TO_PTR(self_in);
-    mp_buffer_info_t bufinfo;
-    mp_get_buffer_raise(arg, &bufinfo, MP_BUFFER_READ);
-
-#if MICROPY_SSL_MBEDTLS
-    mbedtls_sha512_update_ret((mbedtls_sha512_context *)self->state, bufinfo.buf, bufinfo.len);
-#else
-    cf_sha512_update((cf_sha512_context *)self->state, bufinfo.buf, bufinfo.len);
-#endif
-
-    return mp_const_none;
-}
-
 static mp_obj_t modngu_hash_sha512_digest(mp_obj_t self_in) {
     mp_obj_hash_t *self = MP_OBJ_TO_PTR(self_in);
 
     uint8_t rv[64];
 
 #if MICROPY_SSL_MBEDTLS
-    mbedtls_sha512_finish_ret((mbedtls_sha512_context *)self->state, rv);
+    mbedtls_sha512_finish((mbedtls_sha512_context *)self->state, rv);
     mbedtls_sha512_free((mbedtls_sha512_context *)self->state);
 #else
-    cf_sha512_digest_final((cf_sha512_context *)self->state, rv;
+    cf_sha512_digest_final((cf_sha512_context *)self->state, rv);
 #endif
 
     return mp_obj_new_bytes(rv, 64);
@@ -187,9 +187,9 @@ static mp_obj_t hm_single_ripemd160(mp_obj_t arg) {
 #if 0
     mbedtls_ripemd160_context ctx;
     mbedtls_ripemd160_init(&ctx);
-    mbedtls_ripemd160_starts_ret(&ctx);
-    mbedtls_ripemd160_update_ret(&ctx, inp.buf, inp.len);
-    mbedtls_ripemd160_finish_ret(&ctx, res);
+    mbedtls_ripemd160_starts(&ctx);
+    mbedtls_ripemd160_update(&ctx, inp.buf, inp.len);
+    mbedtls_ripemd160_finish(&ctx, res);
     mbedtls_ripemd160_free(&ctx);
 #endif
     ripemd160(inp.buf, inp.len, res);
@@ -280,7 +280,7 @@ static mp_obj_t pbkdf2_sha512(mp_obj_t pass_in, mp_obj_t salt_in, mp_obj_t round
 	explicit_bzero(obuf, sizeof(obuf));
 */
 
-    return mp_obj_new_bytes(key, H_SIZE);
+    return mp_obj_new_bytes(key_arr, H_SIZE);
 }
 static MP_DEFINE_CONST_FUN_OBJ_3(pbkdf2_sha512_obj, pbkdf2_sha512);
 
@@ -345,9 +345,9 @@ void sha256_single(const uint8_t *msg, int msglen, uint8_t digest[32])
 #if MICROPY_SSL_MBEDTLS
     mbedtls_sha256_context ctx;
     mbedtls_sha256_init(&ctx);
-    mbedtls_sha256_starts_ret(&ctx, 0);
-    mbedtls_sha256_update_ret(&ctx, msg, msglen);
-    mbedtls_sha256_finish_ret(&ctx, digest);
+    mbedtls_sha256_starts(&ctx, 0);
+    mbedtls_sha256_update(&ctx, msg, msglen);
+    mbedtls_sha256_finish(&ctx, digest);
     mbedtls_sha256_free(&ctx);
 #elif defined(HASH_DATATYPE_8B)
     // Hardware Accelerated on this board.
@@ -395,13 +395,13 @@ void sha256_double(const uint8_t *msg, int msglen, uint8_t digest[32])
     // re-used ctx here (slight savings in stack depth)
     mbedtls_sha256_context ctx;
     mbedtls_sha256_init(&ctx);
-    mbedtls_sha256_starts_ret(&ctx, 0);
-    mbedtls_sha256_update_ret(&ctx, msg, msglen);
-    mbedtls_sha256_finish_ret(&ctx, digest);
+    mbedtls_sha256_starts(&ctx, 0);
+    mbedtls_sha256_update(&ctx, msg, msglen);
+    mbedtls_sha256_finish(&ctx, digest);
 
-    mbedtls_sha256_starts_ret(&ctx, 0);
-    mbedtls_sha256_update_ret(&ctx, digest, 32);
-    mbedtls_sha256_finish_ret(&ctx, digest);
+    mbedtls_sha256_starts(&ctx, 0);
+    mbedtls_sha256_update(&ctx, digest, 32);
+    mbedtls_sha256_finish(&ctx, digest);
     mbedtls_sha256_free(&ctx);
 #else
     sha256_single(msg, msglen, digest);
