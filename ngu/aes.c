@@ -99,19 +99,19 @@ static mp_obj_t s_CBC_cipher(mp_obj_t self_in, mp_obj_t buf_in)
 
     assert(self->aes_ctx.rounds);
 
-    vstr_t rv;
-    vstr_init_len(&rv, buf.len);
+    uint8_t rv[buf.len];
+
     if(buf.len % CF_MAXBLOCK) {        // 16
         mp_raise_ValueError(NULL);
     }
 
     if(self->is_encrypt) {
-        cf_cbc_encrypt(&self->mode_ctx, buf.buf, (uint8_t *)rv.buf, buf.len/CF_MAXBLOCK);
+        cf_cbc_encrypt(&self->mode_ctx, buf.buf, rv, buf.len/CF_MAXBLOCK);
     } else {
-        cf_cbc_decrypt(&self->mode_ctx, buf.buf, (uint8_t *)rv.buf, buf.len/CF_MAXBLOCK);
+        cf_cbc_decrypt(&self->mode_ctx, buf.buf, rv, buf.len/CF_MAXBLOCK);
     }
 
-    return mp_obj_new_str_from_vstr(&mp_type_bytes, &rv);
+    return mp_obj_new_bytes(rv, buf.len);
 }
 static MP_DEFINE_CONST_FUN_OBJ_2(s_CBC_cipher_obj, s_CBC_cipher);
 
@@ -123,13 +123,12 @@ static mp_obj_t s_CTR_cipher(mp_obj_t self_in, mp_obj_t buf_in)
 
     assert(self->aes_ctx.rounds);
 
-    vstr_t rv;
-    vstr_init_len(&rv, buf.len);
+    uint8_t rv[buf.len];
 
     // any size i/o works
-    cf_ctr_cipher(&self->mode_ctx, buf.buf, (uint8_t *)rv.buf, buf.len);
+    cf_ctr_cipher(&self->mode_ctx, buf.buf, rv, buf.len);
 
-    return mp_obj_new_str_from_vstr(&mp_type_bytes, &rv);
+    return mp_obj_new_bytes(rv, buf.len);
 }
 static MP_DEFINE_CONST_FUN_OBJ_2(s_CTR_cipher_obj, s_CTR_cipher);
 

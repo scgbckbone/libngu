@@ -85,17 +85,15 @@ static mp_obj_t curve_sign(mp_obj_t self_in, mp_obj_t privkey_in, mp_obj_t diges
     mbedtls_mpi_free(&privkey);
 
     // convert (R,S) output pair to 64 bytes
-    vstr_t vstr;
-    vstr_init_len(&vstr, 64);
+    uint8_t result[64];
 
-    uint8_t     *result = (uint8_t *)vstr.buf;
-    CHECK_RESULT(mbedtls_mpi_write_binary(&r, &result[0], 32));
-    CHECK_RESULT(mbedtls_mpi_write_binary(&s, &result[32], 32));
+    CHECK_RESULT(mbedtls_mpi_write_binary(&r, result, 32));
+    CHECK_RESULT(mbedtls_mpi_write_binary(&s, result + 32, 32));
 
     mbedtls_mpi_free(&r);
     mbedtls_mpi_free(&s);
 
-    return mp_obj_new_str_from_vstr(&mp_type_bytes, &vstr);
+    return mp_obj_new_bytes(result, 64);
 }
 static MP_DEFINE_CONST_FUN_OBJ_3(curve_sign_obj, curve_sign);
 

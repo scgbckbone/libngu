@@ -149,12 +149,11 @@ static mp_obj_t random_bytes(mp_obj_t count_in)
         mp_raise_ValueError(MP_ERROR_TEXT("too many"));
     }
 
-    vstr_t rv;
-    vstr_init_len(&rv, count);
+    uint8_t rv[count];
 
-    my_random_bytes((uint8_t *)rv.buf, count);
+    my_random_bytes(rv, count);
 
-    return mp_obj_new_str_from_vstr(&mp_type_bytes, &rv);
+    return mp_obj_new_bytes(rv, count);
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(random_bytes_obj, random_bytes);
 

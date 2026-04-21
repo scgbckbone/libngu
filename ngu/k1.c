@@ -227,8 +227,8 @@ static mp_obj_t s_xonly_pubkey_make_new(const mp_obj_type_t *type, size_t n_args
 static mp_obj_t s_pubkey_to_bytes(size_t n_args, const mp_obj_t *args) {
     mp_obj_pubkey_t *self = MP_OBJ_TO_PTR(args[0]);
 
-    vstr_t vstr;
-    vstr_init_len(&vstr, 66);
+    size_t outlen = 66;
+    uint8_t res[outlen];
 
     // default: compressed, but can pass in true to get uncompressed
     bool compressed = true;
@@ -236,13 +236,11 @@ static mp_obj_t s_pubkey_to_bytes(size_t n_args, const mp_obj_t *args) {
         compressed = !mp_obj_is_true(args[1]);
     }
 
-    size_t outlen = vstr.len;
-    secp256k1_ec_pubkey_serialize(secp256k1_context_static, (uint8_t *)vstr.buf, &outlen,
+    secp256k1_ec_pubkey_serialize(secp256k1_context_static, res, &outlen,
             &self->pubkey,
             compressed ? SECP256K1_EC_COMPRESSED: SECP256K1_EC_UNCOMPRESSED );
 
-    vstr.len = outlen;
-    return mp_obj_new_str_from_vstr(&mp_type_bytes, &vstr);
+    return mp_obj_new_bytes(res, outlen);
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(s_pubkey_to_bytes_obj, 1, 2, s_pubkey_to_bytes);
 
@@ -266,12 +264,11 @@ static MP_DEFINE_CONST_FUN_OBJ_1(s_pubkey_to_xonly_obj, s_pubkey_to_xonly);
 static mp_obj_t s_xonly_pubkey_to_bytes(size_t n_args, const mp_obj_t *args) {
     mp_obj_xonly_pubkey_t *self = MP_OBJ_TO_PTR(args[0]);
 
-    vstr_t vstr;
-    vstr_init_len(&vstr, 32);
+    uint8_t res[32];
 
-    secp256k1_xonly_pubkey_serialize(secp256k1_context_static, (uint8_t *)vstr.buf, &self->pubkey);
+    secp256k1_xonly_pubkey_serialize(secp256k1_context_static, res, &self->pubkey);
 
-    return mp_obj_new_str_from_vstr(&mp_type_bytes, &vstr);
+    return mp_obj_new_bytes(res, 32);
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(s_xonly_pubkey_to_bytes_obj, 1, 2, s_xonly_pubkey_to_bytes);
 
@@ -314,17 +311,16 @@ static mp_obj_t s_sig_to_bytes(mp_obj_t self_in) {
     mp_obj_sig_t *self = MP_OBJ_TO_PTR(self_in);
 
     int recid = 0;
-    vstr_t vstr;
-    vstr_init_len(&vstr, 65);
 
-    secp256k1_ecdsa_recoverable_signature_serialize_compact(secp256k1_context_static,
-                ((uint8_t *)vstr.buf)+1, &recid, &self->sig);
+    uint8_t res[65];
+
+    secp256k1_ecdsa_recoverable_signature_serialize_compact(secp256k1_context_static, res+1, &recid, &self->sig);
 
     // first byte is bitcoin-specific rec id
     // - always compressed
-    vstr.buf[0] = 27 + recid + 4;
+    res[0] = 27 + recid + 4;
 
-    return mp_obj_new_str_from_vstr(&mp_type_bytes, &vstr);
+    return mp_obj_new_bytes(res, 65);
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(s_sig_to_bytes_obj, s_sig_to_bytes);
 
@@ -440,13 +436,12 @@ static mp_obj_t s_sign_schnorr(mp_obj_t privkey_in, mp_obj_t digest_in, mp_obj_t
         mp_raise_ValueError(MP_ERROR_TEXT("aux rand len != 32"));
     }
 
-    vstr_t rv;
-    vstr_init_len(&rv, 64);
+    uint8_t rv[64];
 
     int ok;
     if(mp_obj_get_type(privkey_in) == &s_keypair_type) {
     	mp_obj_keypair_t *keypair = MP_OBJ_TO_PTR(privkey_in);
-        ok = secp256k1_schnorrsig_sign32(lib_ctx, (uint8_t *)rv.buf, digest.buf, &keypair->keypair, aux_rand.buf);
+        ok = secp256k1_schnorrsig_sign32(lib_ctx, rv, digest.buf, &keypair->keypair, aux_rand.buf);
     } else {
         // typical: raw privkey
         mp_buffer_info_t privkey;
@@ -460,13 +455,13 @@ static mp_obj_t s_sign_schnorr(mp_obj_t privkey_in, mp_obj_t digest_in, mp_obj_t
 		if (!key_ok) {
 			mp_raise_ValueError(MP_ERROR_TEXT("invalid secret"));
 		}
-        ok = secp256k1_schnorrsig_sign32(lib_ctx, (uint8_t *)rv.buf, digest.buf, &keypair, aux_rand.buf);
+        ok = secp256k1_schnorrsig_sign32(lib_ctx, rv, digest.buf, &keypair, aux_rand.buf);
     }
     if(!ok) {
         mp_raise_ValueError(MP_ERROR_TEXT("secp256k1_schnorrsig_sign"));
     }
 
-    return mp_obj_new_str_from_vstr(&mp_type_bytes, &rv);
+    return mp_obj_new_bytes(rv, 64);
 }
 static MP_DEFINE_CONST_FUN_OBJ_3(s_sign_schnorr_obj, s_sign_schnorr);
 
@@ -636,15 +631,14 @@ static mp_obj_t s_keypair_ecdh_multiply(mp_obj_t self_in, mp_obj_t other_point_i
     uint8_t seckey[32];
 	secp256k1_keypair_sec(lib_ctx, seckey, &self->keypair);
 
-    vstr_t rv;
-    vstr_init_len(&rv, 32);
+    uint8_t rv[32];
 
-    ok = secp256k1_ecdh(lib_ctx, (uint8_t *)rv.buf, &other_point, seckey, _my_ecdh_hash, NULL);
+    ok = secp256k1_ecdh(lib_ctx, rv, &other_point, seckey, _my_ecdh_hash, NULL);
     if(!ok) {
         mp_raise_ValueError(MP_ERROR_TEXT("secp256k1_ecdh"));
     }
 
-    return mp_obj_new_str_from_vstr(&mp_type_bytes, &rv);
+    return mp_obj_new_bytes(rv, 32);
 }
 static MP_DEFINE_CONST_FUN_OBJ_2(s_keypair_ecdh_multiply_obj, s_keypair_ecdh_multiply);
 
@@ -911,12 +905,11 @@ MP_DEFINE_CONST_FUN_OBJ_KW(s_musig_nonce_gen_obj, 1, s_musig_nonce_gen);
 static mp_obj_t s_pubnonce_to_bytes(mp_obj_t pubnonce_in) {
     mp_obj_musig_pubnonce_t *self = MP_OBJ_TO_PTR(pubnonce_in);
 
-    vstr_t vstr;
-    vstr_init_len(&vstr, 66);
+    uint8_t rv[66];
 
-    secp256k1_musig_pubnonce_serialize(secp256k1_context_static, (uint8_t *)vstr.buf, &self->pubnonce);
+    secp256k1_musig_pubnonce_serialize(secp256k1_context_static, rv, &self->pubnonce);
 
-    return mp_obj_new_str_from_vstr(&mp_type_bytes, &vstr);
+    return mp_obj_new_bytes(rv, 66);
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(s_pubnonce_to_bytes_obj, s_pubnonce_to_bytes);
 
@@ -947,12 +940,11 @@ static mp_obj_t s_pubnonce_make_new(const mp_obj_type_t *type, size_t n_args, si
 static mp_obj_t s_aggnonce_to_bytes(mp_obj_t aggnonce_in) {
     mp_obj_musig_aggnonce_t *self = MP_OBJ_TO_PTR(aggnonce_in);
 
-    vstr_t vstr;
-    vstr_init_len(&vstr, 66);
+    uint8_t rv[66];
 
-    secp256k1_musig_aggnonce_serialize(secp256k1_context_static, (uint8_t *)vstr.buf, &self->aggnonce);
+    secp256k1_musig_aggnonce_serialize(secp256k1_context_static, rv, &self->aggnonce);
 
-    return mp_obj_new_str_from_vstr(&mp_type_bytes, &vstr);
+    return mp_obj_new_bytes(rv, 66);
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(s_aggnonce_to_bytes_obj, s_aggnonce_to_bytes);
 
@@ -1073,12 +1065,11 @@ static mp_obj_t s_musig_partial_sig_make_new(const mp_obj_type_t *type, size_t n
 static mp_obj_t s_musig_partial_sig_to_bytes(mp_obj_t part_sig_in) {
     mp_obj_musig_partial_sig_t *self = MP_OBJ_TO_PTR(part_sig_in);
 
-    vstr_t vstr;
-    vstr_init_len(&vstr, 32);
+    uint8_t rv[32];
 
-    secp256k1_musig_partial_sig_serialize(secp256k1_context_static, (uint8_t *)vstr.buf, &self->sig);
+    secp256k1_musig_partial_sig_serialize(secp256k1_context_static, rv, &self->sig);
 
-    return mp_obj_new_str_from_vstr(&mp_type_bytes, &vstr);
+    return mp_obj_new_bytes(rv, 32);
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(s_musig_partial_sig_to_bytes_obj, s_musig_partial_sig_to_bytes);
 
@@ -1188,15 +1179,14 @@ static mp_obj_t s_musig_partial_sig_agg(mp_obj_t part_sigs_in, mp_obj_t session_
 
     mp_obj_musig_session_t *session = MP_OBJ_TO_PTR(session_in);
 
-    vstr_t res;
-    vstr_init_len(&res, 64);
+    uint8_t res[64];
 
-    int ok = secp256k1_musig_partial_sig_agg(lib_ctx, (uint8_t *)res.buf, &session->session, ps, len_part_sigs);
+    int ok = secp256k1_musig_partial_sig_agg(lib_ctx, res, &session->session, ps, len_part_sigs);
     if (!ok) {
         mp_raise_ValueError(MP_ERROR_TEXT("secp256k1_musig_partial_sig_agg invalid arguments"));
     }
 
-    return mp_obj_new_str_from_vstr(&mp_type_bytes, &res);
+    return mp_obj_new_bytes(res, 64);
 }
 static MP_DEFINE_CONST_FUN_OBJ_2(s_musig_partial_sig_agg_obj, s_musig_partial_sig_agg);
 
@@ -1265,6 +1255,7 @@ static MP_DEFINE_CONST_OBJ_TYPE(
 static MP_DEFINE_CONST_OBJ_TYPE(
     s_musig_session_type,
     MP_QSTR_secp256k1_musig_session,
+    MP_TYPE_FLAG_NONE
 );
 
 static const mp_rom_map_elem_t s_musig_keyagg_cache_locals_dict_table[] = {
@@ -1310,6 +1301,7 @@ static MP_DEFINE_CONST_OBJ_TYPE(
 static MP_DEFINE_CONST_OBJ_TYPE(
     s_musig_secnonce_type,
     MP_QSTR_secp256k1_musig_secnonce,
+    MP_TYPE_FLAG_NONE
 );
 
 // privkeys and what you can do with them

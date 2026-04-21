@@ -221,30 +221,19 @@ static mp_obj_t s_hdnode_privkey(mp_obj_t self_in) {
     mp_obj_hdnode_t *self = MP_OBJ_TO_PTR(self_in);
     raise_on_invalid(self);
 
-    vstr_t vstr;
-    vstr_init_len(&vstr, 32);
-
     if(!self->have_private) {
         mp_raise_ValueError(MP_ERROR_TEXT("no privkey"));
     }
-    memcpy(vstr.buf, self->privkey, 32);
 
-    return mp_obj_new_str_from_vstr(&mp_type_bytes, &vstr);
+    return mp_obj_new_bytes(self->privkey, 32);
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(s_hdnode_privkey_obj, s_hdnode_privkey);
-
 
 static mp_obj_t s_hdnode_pubkey(mp_obj_t self_in) {
     mp_obj_hdnode_t *self = MP_OBJ_TO_PTR(self_in);
     raise_on_invalid(self);
 
-    vstr_t vstr;
-    vstr_init_len(&vstr, 33);
-
-    // 33 bytes of pubkey
-    memcpy(vstr.buf, self->pubkey, sizeof(self->pubkey));
-
-    return mp_obj_new_str_from_vstr(&mp_type_bytes, &vstr);
+    return mp_obj_new_bytes(self->pubkey, 33);
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(s_hdnode_pubkey_obj, s_hdnode_pubkey);
 
@@ -597,11 +586,7 @@ static mp_obj_t s_hdnode_chain_code(mp_obj_t self_in) {
     mp_obj_hdnode_t *self = MP_OBJ_TO_PTR(self_in);
     raise_on_invalid(self);
 
-    vstr_t vstr;
-    vstr_init_len(&vstr, 32);
-    memcpy(vstr.buf, self->chain_code, 32);
-
-    return mp_obj_new_str_from_vstr(&mp_type_bytes, &vstr);
+    return mp_obj_new_bytes(self->chain_code, 32);
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(s_hdnode_chain_code_obj, s_hdnode_chain_code);
 

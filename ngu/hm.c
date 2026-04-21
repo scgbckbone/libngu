@@ -30,8 +30,7 @@ static mp_obj_t hmac_X(int md_size, mp_obj_t key_in, mp_obj_t msg_in)
     mp_get_buffer_raise(key_in, &key, MP_BUFFER_READ);
     mp_get_buffer_raise(msg_in, &msg, MP_BUFFER_READ);
 
-    vstr_t rv_out;
-    vstr_init_len(&rv_out, md_size);
+    uint8_t rv_out[md_size];
 
 #if MICROPY_SSL_MBEDTLS
     const mbedtls_md_info_t *algo;
@@ -50,7 +49,7 @@ static mp_obj_t hmac_X(int md_size, mp_obj_t key_in, mp_obj_t msg_in)
             mp_raise_ValueError(NULL);
     }
 
-    int x = mbedtls_md_hmac(algo, key.buf, key.len, msg.buf, msg.len, (uint8_t*)rv_out.buf);
+    int x = mbedtls_md_hmac(algo, key.buf, key.len, msg.buf, msg.len, rv_out);
 
     if(x) {
         mp_raise_msg(&mp_type_RuntimeError, MP_ERROR_TEXT("mbedtls_md_hmac"));
@@ -72,10 +71,10 @@ static mp_obj_t hmac_X(int md_size, mp_obj_t key_in, mp_obj_t msg_in)
         default:
             mp_raise_ValueError(NULL);
     }
-    cf_hmac(key.buf, key.len, msg.buf, msg.len, (uint8_t*)rv_out.buf, algo);
+    cf_hmac(key.buf, key.len, msg.buf, msg.len, rv_out, algo);
 #endif
 
-    return mp_obj_new_str_from_vstr(&mp_type_bytes, &rv_out);
+    return mp_obj_new_bytes(rv_out, md_size);
 }
 
 static mp_obj_t hmac_sha512(mp_obj_t key_in, mp_obj_t msg_in)
