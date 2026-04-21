@@ -35,7 +35,7 @@ typedef struct _mp_obj_curve_t {
 static mp_obj_t curve_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
     mp_arg_check_num(n_args, n_kw, 1, 1, false);
 
-    mp_obj_curve_t *o = m_new_obj_with_finaliser(mp_obj_curve_t);
+    mp_obj_curve_t *o = (mp_obj_curve_t *)m_malloc_with_finaliser(sizeof(mp_obj_curve_t));
     o->base.type = type;
     mbedtls_ecp_group_init(&o->grp);
 

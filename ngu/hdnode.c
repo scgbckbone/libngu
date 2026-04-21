@@ -182,7 +182,7 @@ static uint32_t _calc_my_fp(mp_obj_hdnode_t *self)
 // Constructor: makes empty/invalid obj
 static mp_obj_t s_hdnode_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
     mp_arg_check_num(n_args, n_kw, 0, 0, false);
-    mp_obj_hdnode_t *o = m_new_obj_with_finaliser(mp_obj_hdnode_t);
+    mp_obj_hdnode_t *o = (mp_obj_hdnode_t *)m_malloc_with_finaliser(sizeof(mp_obj_hdnode_t));
 
     memset(o, 0, sizeof(mp_obj_hdnode_t));
     o->base.type = type;
@@ -198,7 +198,7 @@ static mp_obj_t s_hdnode_copy(mp_obj_t self_in) {
     mp_obj_hdnode_t *self = MP_OBJ_TO_PTR(self_in);
     raise_on_invalid(self);         // debatable, but isolates faults faster
 
-    mp_obj_hdnode_t *rv = m_new_obj_with_finaliser(mp_obj_hdnode_t);
+    mp_obj_hdnode_t *rv = (mp_obj_hdnode_t *)m_malloc_with_finaliser(sizeof(mp_obj_hdnode_t));
     *rv = *self;
     rv->base.type = &s_hdnode_type;
     

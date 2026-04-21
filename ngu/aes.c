@@ -49,7 +49,7 @@ static mp_obj_t s_CBC_make_new(const mp_obj_type_t *type, size_t n_args, size_t 
     // args: is_encrypt, key, iv?
     mp_arg_check_num(n_args, n_kw, 3, 3, false);
 
-    mp_obj_CBC_t *o = m_new_obj_with_finaliser(mp_obj_CBC_t);
+    mp_obj_CBC_t *o = (mp_obj_CBC_t *)m_malloc_with_finaliser(sizeof(mp_obj_CBC_t));
     o->base.type = type;
 
     o->is_encrypt = !!mp_obj_get_int_truncated(args[0]);
@@ -70,7 +70,7 @@ static mp_obj_t s_CTR_make_new(const mp_obj_type_t *type, size_t n_args, size_t 
     // args: key, nonce
     mp_arg_check_num(n_args, n_kw, 1, 2, false);
 
-    mp_obj_CTR_t *o = m_new_obj_with_finaliser(mp_obj_CTR_t);
+    mp_obj_CTR_t *o = (mp_obj_CTR_t *)m_malloc_with_finaliser(sizeof(mp_obj_CTR_t));
     o->base.type = type;
 
     _aes_setup(&o->aes_ctx, args[0]);
@@ -146,7 +146,7 @@ static MP_DEFINE_CONST_FUN_OBJ_1(s_CBC_blank_obj, s_CBC_blank);
 static mp_obj_t s_CBC_copy(mp_obj_t self_in) {
     mp_obj_CBC_t *self = MP_OBJ_TO_PTR(self_in);
 
-    mp_obj_CBC_t *rv = m_new_obj_with_finaliser(mp_obj_CBC_t);
+    mp_obj_CBC_t *rv = (mp_obj_CBC_t *)m_malloc_with_finaliser(sizeof(mp_obj_CBC_t));
     *rv = *self;
     rv->base.type = &s_CBC_type;
     
@@ -168,7 +168,7 @@ static MP_DEFINE_CONST_FUN_OBJ_1(s_CTR_blank_obj, s_CTR_blank);
 static mp_obj_t s_CTR_copy(mp_obj_t self_in) {
     mp_obj_CTR_t *self = MP_OBJ_TO_PTR(self_in);
 
-    mp_obj_CTR_t *rv = m_new_obj_with_finaliser(mp_obj_CTR_t);
+    mp_obj_CTR_t *rv = (mp_obj_CTR_t *)m_malloc_with_finaliser(sizeof(mp_obj_CTR_t));
     *rv = *self;
     rv->base.type = &s_CTR_type;
     

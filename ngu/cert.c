@@ -31,7 +31,7 @@ typedef struct {
 static mp_obj_t cert_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
     mp_arg_check_num(n_args, n_kw, 0, 0, false);
 
-    mp_obj_cert_t *o = m_new_obj_with_finaliser(mp_obj_cert_t);
+    mp_obj_cert_t *o = (mp_obj_cert_t *)m_malloc_with_finaliser(sizeof(mp_obj_cert_t));
     o->base.type = type;
 
     mbedtls_x509_crt_init(&o->mcert);
