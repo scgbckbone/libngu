@@ -27,7 +27,7 @@ extern const mp_obj_module_t mp_module_cert;
 extern const mp_obj_module_t mp_module_aes;
 #endif
 
-STATIC const mp_rom_map_elem_t mp_module_ngu_globals_table[] = {
+static const mp_rom_map_elem_t mp_module_ngu_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_ngu) },
 
     // Constants
@@ -48,7 +48,7 @@ STATIC const mp_rom_map_elem_t mp_module_ngu_globals_table[] = {
 #endif
 };
 
-STATIC MP_DEFINE_CONST_DICT(mp_module_ngu_globals, mp_module_ngu_globals_table);
+static MP_DEFINE_CONST_DICT(mp_module_ngu_globals, mp_module_ngu_globals_table);
 
 const mp_obj_module_t mp_module_ngu = {
     .base = { &mp_type_module },

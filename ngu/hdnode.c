@@ -30,7 +30,7 @@ typedef struct  {
 #endif
 } mp_obj_hdnode_t;
 
-STATIC const mp_obj_type_t s_hdnode_type;
+static const mp_obj_type_t s_hdnode_type;
 
 static inline uint8_t *write_be32(uint8_t *p, uint32_t v)
 {
@@ -180,7 +180,7 @@ static uint32_t _calc_my_fp(mp_obj_hdnode_t *self)
 }
 
 // Constructor: makes empty/invalid obj
-STATIC mp_obj_t s_hdnode_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
+static mp_obj_t s_hdnode_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
     mp_arg_check_num(n_args, n_kw, 0, 0, false);
     mp_obj_hdnode_t *o = m_new_obj_with_finaliser(mp_obj_hdnode_t);
 
@@ -194,7 +194,7 @@ STATIC mp_obj_t s_hdnode_make_new(const mp_obj_type_t *type, size_t n_args, size
 
 
 // METHODS
-STATIC mp_obj_t s_hdnode_copy(mp_obj_t self_in) {
+static mp_obj_t s_hdnode_copy(mp_obj_t self_in) {
     mp_obj_hdnode_t *self = MP_OBJ_TO_PTR(self_in);
     raise_on_invalid(self);         // debatable, but isolates faults faster
 
@@ -204,9 +204,9 @@ STATIC mp_obj_t s_hdnode_copy(mp_obj_t self_in) {
     
     return MP_OBJ_FROM_PTR(rv);
 }
-STATIC MP_DEFINE_CONST_FUN_OBJ_1(s_hdnode_copy_obj, s_hdnode_copy);
+static MP_DEFINE_CONST_FUN_OBJ_1(s_hdnode_copy_obj, s_hdnode_copy);
 
-STATIC mp_obj_t s_hdnode_blank(mp_obj_t self_in) {
+static mp_obj_t s_hdnode_blank(mp_obj_t self_in) {
     mp_obj_hdnode_t *self = MP_OBJ_TO_PTR(self_in);
 
     memset(self, 0, sizeof(mp_obj_hdnode_t));
@@ -215,9 +215,9 @@ STATIC mp_obj_t s_hdnode_blank(mp_obj_t self_in) {
     
     return MP_OBJ_FROM_PTR(self);
 }
-STATIC MP_DEFINE_CONST_FUN_OBJ_1(s_hdnode_blank_obj, s_hdnode_blank);
+static MP_DEFINE_CONST_FUN_OBJ_1(s_hdnode_blank_obj, s_hdnode_blank);
 
-STATIC mp_obj_t s_hdnode_privkey(mp_obj_t self_in) {
+static mp_obj_t s_hdnode_privkey(mp_obj_t self_in) {
     mp_obj_hdnode_t *self = MP_OBJ_TO_PTR(self_in);
     raise_on_invalid(self);
 
@@ -231,10 +231,10 @@ STATIC mp_obj_t s_hdnode_privkey(mp_obj_t self_in) {
 
     return mp_obj_new_str_from_vstr(&mp_type_bytes, &vstr);
 }
-STATIC MP_DEFINE_CONST_FUN_OBJ_1(s_hdnode_privkey_obj, s_hdnode_privkey);
+static MP_DEFINE_CONST_FUN_OBJ_1(s_hdnode_privkey_obj, s_hdnode_privkey);
 
 
-STATIC mp_obj_t s_hdnode_pubkey(mp_obj_t self_in) {
+static mp_obj_t s_hdnode_pubkey(mp_obj_t self_in) {
     mp_obj_hdnode_t *self = MP_OBJ_TO_PTR(self_in);
     raise_on_invalid(self);
 
@@ -246,9 +246,9 @@ STATIC mp_obj_t s_hdnode_pubkey(mp_obj_t self_in) {
 
     return mp_obj_new_str_from_vstr(&mp_type_bytes, &vstr);
 }
-STATIC MP_DEFINE_CONST_FUN_OBJ_1(s_hdnode_pubkey_obj, s_hdnode_pubkey);
+static MP_DEFINE_CONST_FUN_OBJ_1(s_hdnode_pubkey_obj, s_hdnode_pubkey);
 
-STATIC mp_obj_t s_hdnode_addr_help(size_t n_args, const mp_obj_t *args) {
+static mp_obj_t s_hdnode_addr_help(size_t n_args, const mp_obj_t *args) {
 
     mp_obj_hdnode_t *self = MP_OBJ_TO_PTR(args[0]);
     raise_on_invalid(self);
@@ -270,9 +270,9 @@ STATIC mp_obj_t s_hdnode_addr_help(size_t n_args, const mp_obj_t *args) {
     }
     return mp_obj_new_str(tmp, len_out-1);
 }
-STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(s_hdnode_addr_help_obj, 1, 2, s_hdnode_addr_help);
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(s_hdnode_addr_help_obj, 1, 2, s_hdnode_addr_help);
 
-STATIC mp_obj_t s_hdnode_serialize(mp_obj_t self_in, mp_obj_t version_in, mp_obj_t want_private_in) {
+static mp_obj_t s_hdnode_serialize(mp_obj_t self_in, mp_obj_t version_in, mp_obj_t want_private_in) {
     // output BIP32 bytes
     //  version bytes: uint32 w/ first 4 bytes (giving xpub/Zpub/etc)
     //  private: flag, exporting private key else public part
@@ -323,9 +323,9 @@ printf("\n");
 
     return mp_obj_new_str(tmp, len_out-1);
 }
-STATIC MP_DEFINE_CONST_FUN_OBJ_3(s_hdnode_serialize_obj, s_hdnode_serialize);
+static MP_DEFINE_CONST_FUN_OBJ_3(s_hdnode_serialize_obj, s_hdnode_serialize);
 
-STATIC mp_obj_t s_hdnode_deserialize(mp_obj_t self_in, mp_obj_t encoded) {
+static mp_obj_t s_hdnode_deserialize(mp_obj_t self_in, mp_obj_t encoded) {
     // deserialize into self, works from base58; returns version observed
     mp_obj_hdnode_t *self = MP_OBJ_TO_PTR(self_in);
 
@@ -340,9 +340,9 @@ STATIC mp_obj_t s_hdnode_deserialize(mp_obj_t self_in, mp_obj_t encoded) {
 
     return hdnode_deserialize_bytes(self, tmp);
 }
-STATIC MP_DEFINE_CONST_FUN_OBJ_2(s_hdnode_deserialize_obj, s_hdnode_deserialize);
+static MP_DEFINE_CONST_FUN_OBJ_2(s_hdnode_deserialize_obj, s_hdnode_deserialize);
 
-STATIC mp_obj_t s_hdnode_deser_bytes(mp_obj_t self_in, mp_obj_t bytes) {
+static mp_obj_t s_hdnode_deser_bytes(mp_obj_t self_in, mp_obj_t bytes) {
     // deserialize into self, works from base58; returns version observed
     mp_obj_hdnode_t *self = MP_OBJ_TO_PTR(self_in);
 
@@ -354,9 +354,9 @@ STATIC mp_obj_t s_hdnode_deser_bytes(mp_obj_t self_in, mp_obj_t bytes) {
 
     return hdnode_deserialize_bytes(self, buf.buf);
 }
-STATIC MP_DEFINE_CONST_FUN_OBJ_2(s_hdnode_deser_bytes_obj, s_hdnode_deser_bytes);
+static MP_DEFINE_CONST_FUN_OBJ_2(s_hdnode_deser_bytes_obj, s_hdnode_deser_bytes);
 
-STATIC mp_obj_t s_hdnode_from_master(mp_obj_t self_in, mp_obj_t master_secret_in) {
+static mp_obj_t s_hdnode_from_master(mp_obj_t self_in, mp_obj_t master_secret_in) {
     mp_obj_hdnode_t *self = MP_OBJ_TO_PTR(self_in);
 
     mp_buffer_info_t buf;
@@ -383,9 +383,9 @@ STATIC mp_obj_t s_hdnode_from_master(mp_obj_t self_in, mp_obj_t master_secret_in
 
     return MP_OBJ_FROM_PTR(self);
 }
-STATIC MP_DEFINE_CONST_FUN_OBJ_2(s_hdnode_from_master_obj, s_hdnode_from_master);
+static MP_DEFINE_CONST_FUN_OBJ_2(s_hdnode_from_master_obj, s_hdnode_from_master);
 
-STATIC mp_obj_t s_hdnode_from_chaincode_privkey(mp_obj_t self_in, mp_obj_t chain_code_in, mp_obj_t privkey_in) {
+static mp_obj_t s_hdnode_from_chaincode_privkey(mp_obj_t self_in, mp_obj_t chain_code_in, mp_obj_t privkey_in) {
     mp_obj_hdnode_t *self = MP_OBJ_TO_PTR(self_in);
 
     mp_buffer_info_t cc, pk;
@@ -416,10 +416,10 @@ STATIC mp_obj_t s_hdnode_from_chaincode_privkey(mp_obj_t self_in, mp_obj_t chain
 
     return MP_OBJ_FROM_PTR(self);
 }
-STATIC MP_DEFINE_CONST_FUN_OBJ_3(s_hdnode_from_chaincode_privkey_obj, s_hdnode_from_chaincode_privkey);
+static MP_DEFINE_CONST_FUN_OBJ_3(s_hdnode_from_chaincode_privkey_obj, s_hdnode_from_chaincode_privkey);
 
 
-STATIC mp_obj_t s_hdnode_from_chaincode_pubkey(mp_obj_t self_in, mp_obj_t chain_code_in, mp_obj_t pubkey_in) {
+static mp_obj_t s_hdnode_from_chaincode_pubkey(mp_obj_t self_in, mp_obj_t chain_code_in, mp_obj_t pubkey_in) {
     mp_obj_hdnode_t *self = MP_OBJ_TO_PTR(self_in);
 
     mp_buffer_info_t cc, pk;
@@ -452,9 +452,9 @@ STATIC mp_obj_t s_hdnode_from_chaincode_pubkey(mp_obj_t self_in, mp_obj_t chain_
 
     return MP_OBJ_FROM_PTR(self);
 }
-STATIC MP_DEFINE_CONST_FUN_OBJ_3(s_hdnode_from_chaincode_pubkey_obj, s_hdnode_from_chaincode_pubkey);
+static MP_DEFINE_CONST_FUN_OBJ_3(s_hdnode_from_chaincode_pubkey_obj, s_hdnode_from_chaincode_pubkey);
 
-STATIC mp_obj_t s_hdnode_censor(mp_obj_t self_in) {
+static mp_obj_t s_hdnode_censor(mp_obj_t self_in) {
     mp_obj_hdnode_t *self = MP_OBJ_TO_PTR(self_in);
     raise_on_invalid(self);
 
@@ -468,10 +468,10 @@ STATIC mp_obj_t s_hdnode_censor(mp_obj_t self_in) {
 
     return MP_OBJ_FROM_PTR(self);
 }
-STATIC MP_DEFINE_CONST_FUN_OBJ_1(s_hdnode_censor_obj, s_hdnode_censor);
+static MP_DEFINE_CONST_FUN_OBJ_1(s_hdnode_censor_obj, s_hdnode_censor);
 
 
-STATIC mp_obj_t s_hdnode_derive(mp_obj_t self_in, mp_obj_t next_child_in, mp_obj_t hard_in) {
+static mp_obj_t s_hdnode_derive(mp_obj_t self_in, mp_obj_t next_child_in, mp_obj_t hard_in) {
     mp_obj_hdnode_t *self = MP_OBJ_TO_PTR(self_in);
     raise_on_invalid(self);
 
@@ -551,27 +551,27 @@ fail:
     mp_raise_ValueError(MP_ERROR_TEXT("bip32 lottery won"));
     return 0;       // not reached
 }
-STATIC MP_DEFINE_CONST_FUN_OBJ_3(s_hdnode_derive_obj, s_hdnode_derive);
+static MP_DEFINE_CONST_FUN_OBJ_3(s_hdnode_derive_obj, s_hdnode_derive);
 
 // Accessors
 
-STATIC mp_obj_t s_hdnode_depth(mp_obj_t self_in) {
+static mp_obj_t s_hdnode_depth(mp_obj_t self_in) {
     mp_obj_hdnode_t *self = MP_OBJ_TO_PTR(self_in);
     raise_on_invalid(self);
 
     return MP_OBJ_NEW_SMALL_INT(self->depth);
 }
-STATIC MP_DEFINE_CONST_FUN_OBJ_1(s_hdnode_depth_obj, s_hdnode_depth);
+static MP_DEFINE_CONST_FUN_OBJ_1(s_hdnode_depth_obj, s_hdnode_depth);
 
-STATIC mp_obj_t s_hdnode_parent_fp(mp_obj_t self_in) {
+static mp_obj_t s_hdnode_parent_fp(mp_obj_t self_in) {
     mp_obj_hdnode_t *self = MP_OBJ_TO_PTR(self_in);
     raise_on_invalid(self);
 
     return mp_obj_new_int_from_uint(self->parent_fp);
 }
-STATIC MP_DEFINE_CONST_FUN_OBJ_1(s_hdnode_parent_fp_obj, s_hdnode_parent_fp);
+static MP_DEFINE_CONST_FUN_OBJ_1(s_hdnode_parent_fp_obj, s_hdnode_parent_fp);
 
-STATIC mp_obj_t s_hdnode_my_fp(mp_obj_t self_in) {
+static mp_obj_t s_hdnode_my_fp(mp_obj_t self_in) {
     mp_obj_hdnode_t *self = MP_OBJ_TO_PTR(self_in);
     raise_on_invalid(self);
 
@@ -579,9 +579,9 @@ STATIC mp_obj_t s_hdnode_my_fp(mp_obj_t self_in) {
 
     return mp_obj_new_int_from_uint(rv);
 }
-STATIC MP_DEFINE_CONST_FUN_OBJ_1(s_hdnode_my_fp_obj, s_hdnode_my_fp);
+static MP_DEFINE_CONST_FUN_OBJ_1(s_hdnode_my_fp_obj, s_hdnode_my_fp);
 
-STATIC mp_obj_t s_hdnode_child_number(mp_obj_t self_in) {
+static mp_obj_t s_hdnode_child_number(mp_obj_t self_in) {
     mp_obj_hdnode_t *self = MP_OBJ_TO_PTR(self_in);
     raise_on_invalid(self);
 
@@ -591,9 +591,9 @@ STATIC mp_obj_t s_hdnode_child_number(mp_obj_t self_in) {
     };
     return mp_obj_new_tuple(2, rv);
 }
-STATIC MP_DEFINE_CONST_FUN_OBJ_1(s_hdnode_child_number_obj, s_hdnode_child_number);
+static MP_DEFINE_CONST_FUN_OBJ_1(s_hdnode_child_number_obj, s_hdnode_child_number);
 
-STATIC mp_obj_t s_hdnode_chain_code(mp_obj_t self_in) {
+static mp_obj_t s_hdnode_chain_code(mp_obj_t self_in) {
     mp_obj_hdnode_t *self = MP_OBJ_TO_PTR(self_in);
     raise_on_invalid(self);
 
@@ -603,10 +603,10 @@ STATIC mp_obj_t s_hdnode_chain_code(mp_obj_t self_in) {
 
     return mp_obj_new_str_from_vstr(&mp_type_bytes, &vstr);
 }
-STATIC MP_DEFINE_CONST_FUN_OBJ_1(s_hdnode_chain_code_obj, s_hdnode_chain_code);
+static MP_DEFINE_CONST_FUN_OBJ_1(s_hdnode_chain_code_obj, s_hdnode_chain_code);
 
 #ifdef EXTRA_DEBUG
-STATIC void s_hdnode_repr(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
+static void s_hdnode_repr(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
     (void)kind;
     mp_obj_hdnode_t *self = MP_OBJ_TO_PTR(self_in);
 
@@ -627,7 +627,7 @@ STATIC void s_hdnode_repr(const mp_print_t *print, mp_obj_t self_in, mp_print_ki
 
 
 // member vars
-STATIC const mp_rom_map_elem_t s_hdnode_locals_dict_table[] = {
+static const mp_rom_map_elem_t s_hdnode_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR_privkey), MP_ROM_PTR(&s_hdnode_privkey_obj) },
     { MP_ROM_QSTR(MP_QSTR_pubkey), MP_ROM_PTR(&s_hdnode_pubkey_obj) },
     { MP_ROM_QSTR(MP_QSTR_serialize), MP_ROM_PTR(&s_hdnode_serialize_obj) },
@@ -651,10 +651,10 @@ STATIC const mp_rom_map_elem_t s_hdnode_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR_blank), MP_ROM_PTR(&s_hdnode_blank_obj) },
     { MP_ROM_QSTR(MP_QSTR___del__), MP_ROM_PTR(&s_hdnode_blank_obj) },
 };
-STATIC MP_DEFINE_CONST_DICT(s_hdnode_locals_dict, s_hdnode_locals_dict_table);
+static MP_DEFINE_CONST_DICT(s_hdnode_locals_dict, s_hdnode_locals_dict_table);
 
 // class: HDNode
-STATIC const mp_obj_type_t s_hdnode_type = {
+static const mp_obj_type_t s_hdnode_type = {
     { &mp_type_type },
     .name = MP_QSTR_HDNode,
     .make_new = s_hdnode_make_new,
@@ -664,13 +664,13 @@ STATIC const mp_obj_type_t s_hdnode_type = {
     .locals_dict = (void *)&s_hdnode_locals_dict,
 };
 
-STATIC const mp_rom_map_elem_t globals_table[] = {
+static const mp_rom_map_elem_t globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_hdnode) },
 
     { MP_ROM_QSTR(MP_QSTR_HDNode), MP_ROM_PTR(&s_hdnode_type) },
 
 };
-STATIC MP_DEFINE_CONST_DICT(globals_table_obj, globals_table);
+static MP_DEFINE_CONST_DICT(globals_table_obj, globals_table);
 
 const mp_obj_module_t mp_module_hdnode = {
     .base = { &mp_type_module },
