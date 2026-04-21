@@ -42,23 +42,29 @@ void ripemd160(const uint8_t *msg, int msglen, uint8_t digest[20]);
 // SHA512
 //
 
-STATIC mp_obj_t modngu_hash_sha512_update(mp_obj_t self_in, mp_obj_t arg);
-
 STATIC mp_obj_t modngu_hash_sha512_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
     mp_arg_check_num(n_args, n_kw, 0, 1, false);
+
 #if MICROPY_SSL_MBEDTLS
-    mp_obj_hash_t *o = m_new_obj_var(mp_obj_hash_t, char, sizeof(mbedtls_sha512_context));
+    // New v1.28 allocation: 4 arguments + correct field name + uintptr_t alignment
+    size_t n = (sizeof(mbedtls_sha512_context) + sizeof(uintptr_t) - 1) / sizeof(uintptr_t);
+    mp_obj_hash_t *o = m_new_obj_var(mp_obj_hash_t, state, uintptr_t, n);
     o->base.type = type;
+    o->final = false;                                      // ← REQUIRED in v1.28+
 
     mbedtls_sha512_init((mbedtls_sha512_context *)o->state);
     mbedtls_sha512_starts_ret((mbedtls_sha512_context *)o->state, false);
 #else
-    mp_obj_hash_t *o = m_new_obj_var(mp_obj_hash_t, char, sizeof(cf_sha512_context));
+    // Same pattern for the tinycrypt/cf fallback
+    size_t n = (sizeof(cf_sha512_context) + sizeof(uintptr_t) - 1) / sizeof(uintptr_t);
+    mp_obj_hash_t *o = m_new_obj_var(mp_obj_hash_t, state, uintptr_t, n);
     o->base.type = type;
+    o->final = false;                                      // ← REQUIRED in v1.28+
+
     cf_sha512_init((cf_sha512_context *)o->state);
 #endif
 
-    if(n_args == 1) {
+    if (n_args == 1) {
         modngu_hash_sha512_update(MP_OBJ_FROM_PTR(o), args[0]);
     }
 
