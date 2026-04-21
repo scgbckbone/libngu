@@ -186,12 +186,13 @@ static const mp_rom_map_elem_t s_CBC_locals_dict_table[] = {
 };
 static MP_DEFINE_CONST_DICT(s_CBC_locals_dict, s_CBC_locals_dict_table);
 
-static const mp_obj_type_t s_CBC_type = {
-    { &mp_type_type },
-    .name = MP_QSTR_CBC,
-    .make_new = s_CBC_make_new,
-    .locals_dict = (void *)&s_CBC_locals_dict,
-};
+static MP_DEFINE_CONST_OBJ_TYPE(
+    s_CBC_type,
+    MP_QSTR_CBC,
+    MP_TYPE_FLAG_NONE,
+    make_new, s_CBC_make_new,
+    locals_dict, &s_CBC_locals_dict
+);
 
 static const mp_rom_map_elem_t s_CTR_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR_cipher), MP_ROM_PTR(&s_CTR_cipher_obj) },
@@ -201,13 +202,13 @@ static const mp_rom_map_elem_t s_CTR_locals_dict_table[] = {
 };
 static MP_DEFINE_CONST_DICT(s_CTR_locals_dict, s_CTR_locals_dict_table);
 
-static const mp_obj_type_t s_CTR_type = {
-    { &mp_type_type },
-    .name = MP_QSTR_CTR,
-    .make_new = s_CTR_make_new,
-    .locals_dict = (void *)&s_CTR_locals_dict,
-};
-
+static MP_DEFINE_CONST_OBJ_TYPE(
+    s_CTR_type,
+    MP_QSTR_CTR,
+    MP_TYPE_FLAG_NONE,
+    make_new, s_CTR_make_new,
+    locals_dict, &s_CTR_locals_dict
+);
 
 static const mp_rom_map_elem_t mp_module_aes_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_aes) },

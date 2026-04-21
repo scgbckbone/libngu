@@ -165,12 +165,13 @@ static const mp_rom_map_elem_t curve_locals_dict_table[] = {
 };
 static MP_DEFINE_CONST_DICT(curve_locals_dict, curve_locals_dict_table);
 
-static const mp_obj_type_t modngu_ec_curve_type = {
-    { &mp_type_type },
-    .name = MP_QSTR_ec_curve,
-    .make_new = curve_make_new,
-    .locals_dict = (void *)&curve_locals_dict,
-};
+static MP_DEFINE_CONST_OBJ_TYPE(
+    modngu_ec_curve_type,
+    MP_QSTR_ec_curve,
+    MP_TYPE_FLAG_NONE,
+    make_new, curve_make_new,
+    locals_dict, &curve_locals_dict
+);
 
 static const mp_rom_map_elem_t mp_module_ec_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_ec) },

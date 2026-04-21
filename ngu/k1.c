@@ -1208,12 +1208,13 @@ static const mp_rom_map_elem_t s_sig_locals_dict_table[] = {
 };
 static MP_DEFINE_CONST_DICT(s_sig_locals_dict, s_sig_locals_dict_table);
 
-static const mp_obj_type_t s_sig_type = {
-    { &mp_type_type },
-    .name = MP_QSTR_secp256k1_sig,
-    .make_new = s_sig_make_new,
-    .locals_dict = (void *)&s_sig_locals_dict,
-};
+static MP_DEFINE_CONST_OBJ_TYPE(
+    s_sig_type,
+    MP_QSTR_secp256k1_sig,
+    MP_TYPE_FLAG_NONE,
+    make_new, s_sig_make_new,
+    locals_dict, &s_sig_locals_dict
+);
 
 // musig partial signature
 static const mp_rom_map_elem_t s_musig_partial_sig_locals_dict_table[] = {
@@ -1222,12 +1223,13 @@ static const mp_rom_map_elem_t s_musig_partial_sig_locals_dict_table[] = {
 };
 static MP_DEFINE_CONST_DICT(s_musig_partial_sig_locals_dict, s_musig_partial_sig_locals_dict_table);
 
-static const mp_obj_type_t s_musig_partial_sig_type = {
-    { &mp_type_type },
-    .name = MP_QSTR_secp256k1_musig_partial_sig,
-    .make_new = s_musig_partial_sig_make_new,
-    .locals_dict = (void *)&s_musig_partial_sig_locals_dict,
-};
+static MP_DEFINE_CONST_OBJ_TYPE(
+    s_musig_partial_sig_type,
+    MP_QSTR_secp256k1_musig_partial_sig,
+    MP_TYPE_FLAG_NONE,
+    make_new, s_musig_partial_sig_make_new,
+    locals_dict, &s_musig_partial_sig_locals_dict
+);
 
 // pubkeys and what you can do with them
 static const mp_rom_map_elem_t s_pubkey_locals_dict_table[] = {
@@ -1243,37 +1245,40 @@ static const mp_rom_map_elem_t s_xonly_pubkey_locals_dict_table[] = {
 };
 static MP_DEFINE_CONST_DICT(s_xonly_pubkey_locals_dict, s_xonly_pubkey_locals_dict_table);
 
-static const mp_obj_type_t s_pubkey_type = {
-    { &mp_type_type },
-    .name = MP_QSTR_secp256k1_pubkey,
-    .make_new = s_pubkey_make_new,
-    .locals_dict = (void *)&s_pubkey_locals_dict,
-};
+static MP_DEFINE_CONST_OBJ_TYPE(
+    s_pubkey_type,
+    MP_QSTR_secp256k1_pubkey,
+    MP_TYPE_FLAG_NONE,
+    make_new, s_pubkey_make_new,
+    locals_dict, &s_pubkey_locals_dict
+);
 
-static const mp_obj_type_t s_xonly_pubkey_type = {
-    { &mp_type_type },
-    .name = MP_QSTR_secp256k1_xonly_pubkey,
-    .make_new = s_xonly_pubkey_make_new,
-    .locals_dict = (void *)&s_xonly_pubkey_locals_dict,
-};
+static MP_DEFINE_CONST_OBJ_TYPE(
+    s_xonly_pubkey_type,
+    MP_QSTR_secp256k1_xonly_pubkey,
+    MP_TYPE_FLAG_NONE,
+    make_new, s_xonly_pubkey_make_new,
+    locals_dict, &s_xonly_pubkey_locals_dict
+);
 
 // musig opaque
-static const mp_obj_type_t s_musig_session_type = {
-    { &mp_type_type },
-    .name = MP_QSTR_secp256k1_musig_session,
-};
+static MP_DEFINE_CONST_OBJ_TYPE(
+    s_musig_session_type,
+    MP_QSTR_secp256k1_musig_session,
+);
 
 static const mp_rom_map_elem_t s_musig_keyagg_cache_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR_agg_pubkey), MP_ROM_PTR(&s_musig_pubkey_get_obj) },
 };
 static MP_DEFINE_CONST_DICT(s_musig_keyagg_cache_locals_dict, s_musig_keyagg_cache_locals_dict_table);
 
-static const mp_obj_type_t s_musig_keyagg_cache_type = {
-    { &mp_type_type },
-    .name = MP_QSTR_secp256k1_musig_keyagg_cache,
-    .make_new = s_musig_keyagg_cache_make_new,
-    .locals_dict = (void *)&s_musig_keyagg_cache_locals_dict,
-};
+static MP_DEFINE_CONST_OBJ_TYPE(
+    s_musig_keyagg_cache_type,
+    MP_QSTR_secp256k1_musig_keyagg_cache,
+    MP_TYPE_FLAG_NONE,
+    make_new, s_musig_keyagg_cache_make_new,
+    locals_dict, &s_musig_keyagg_cache_locals_dict
+);
 
 // musig nonces
 static const mp_rom_map_elem_t s_musig_pubnonce_locals_dict_table[] = {
@@ -1281,29 +1286,31 @@ static const mp_rom_map_elem_t s_musig_pubnonce_locals_dict_table[] = {
 };
 static MP_DEFINE_CONST_DICT(s_musig_pubnonce_locals_dict, s_musig_pubnonce_locals_dict_table);
 
-static const mp_obj_type_t s_musig_pubnonce_type = {
-    { &mp_type_type },
-    .name = MP_QSTR_secp256k1_musig_pubnonce,
-    .make_new = s_pubnonce_make_new,
-    .locals_dict = (void *)&s_musig_pubnonce_locals_dict,
-};
+static MP_DEFINE_CONST_OBJ_TYPE(
+    s_musig_pubnonce_type,
+    MP_QSTR_secp256k1_musig_pubnonce,
+    MP_TYPE_FLAG_NONE,
+    make_new, s_pubnonce_make_new,
+    locals_dict, &s_musig_pubnonce_locals_dict
+);
 
 static const mp_rom_map_elem_t s_musig_aggnonce_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR_to_bytes), MP_ROM_PTR(&s_aggnonce_to_bytes_obj) },
 };
 static MP_DEFINE_CONST_DICT(s_musig_aggnonce_locals_dict, s_musig_aggnonce_locals_dict_table);
 
-static const mp_obj_type_t s_musig_aggnonce_type = {
-    { &mp_type_type },
-    .name = MP_QSTR_secp256k1_musig_aggnonce,
-    .make_new = s_aggnonce_make_new,
-    .locals_dict = (void *)&s_musig_aggnonce_locals_dict,
-};
+static MP_DEFINE_CONST_OBJ_TYPE(
+    s_musig_aggnonce_type,
+    MP_QSTR_secp256k1_musig_aggnonce,
+    MP_TYPE_FLAG_NONE,
+    make_new, s_aggnonce_make_new,
+    locals_dict, &s_musig_aggnonce_locals_dict
+);
 
-static const mp_obj_type_t s_musig_secnonce_type = {
-    { &mp_type_type },
-    .name = MP_QSTR_secp256k1_musig_secnonce,
-};
+static MP_DEFINE_CONST_OBJ_TYPE(
+    s_musig_secnonce_type,
+    MP_QSTR_secp256k1_musig_secnonce,
+);
 
 // privkeys and what you can do with them
 static const mp_rom_map_elem_t s_keypair_locals_dict_table[] = {
@@ -1315,13 +1322,13 @@ static const mp_rom_map_elem_t s_keypair_locals_dict_table[] = {
 };
 static MP_DEFINE_CONST_DICT(s_keypair_locals_dict, s_keypair_locals_dict_table);
 
-static const mp_obj_type_t s_keypair_type = {
-    { &mp_type_type },
-    .name = MP_QSTR_secp256k1_keypair,
-    .make_new = s_keypair_make_new,
-    .locals_dict = (void *)&s_keypair_locals_dict,
-};
-
+static MP_DEFINE_CONST_OBJ_TYPE(
+    s_keypair_type,
+    MP_QSTR_secp256k1_keypair,
+    MP_TYPE_FLAG_NONE,
+    make_new, s_keypair_make_new,
+    locals_dict, &s_keypair_locals_dict
+);
 
 static const mp_rom_map_elem_t globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_secp256k1) },

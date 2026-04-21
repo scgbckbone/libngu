@@ -654,15 +654,16 @@ static const mp_rom_map_elem_t s_hdnode_locals_dict_table[] = {
 static MP_DEFINE_CONST_DICT(s_hdnode_locals_dict, s_hdnode_locals_dict_table);
 
 // class: HDNode
-static const mp_obj_type_t s_hdnode_type = {
-    { &mp_type_type },
-    .name = MP_QSTR_HDNode,
-    .make_new = s_hdnode_make_new,
+static MP_DEFINE_CONST_OBJ_TYPE(
+    s_hdnode_type,
+    MP_QSTR_HDNode,
+    MP_TYPE_FLAG_NONE,
 #ifdef EXTRA_DEBUG
-    .print = s_hdnode_repr,
+    print, s_hdnode_repr,
 #endif
-    .locals_dict = (void *)&s_hdnode_locals_dict,
-};
+    make_new, s_hdnode_make_new,
+    locals_dict, &s_hdnode_locals_dict
+);
 
 static const mp_rom_map_elem_t globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_hdnode) },

@@ -108,12 +108,13 @@ static const mp_rom_map_elem_t modngu_hash_sha512_locals_dict_table[] = {
 };
 static MP_DEFINE_CONST_DICT(modngu_hash_sha512_locals_dict, modngu_hash_sha512_locals_dict_table);
 
-static const mp_obj_type_t modngu_hash_sha512_type = {
-    { &mp_type_type },
-    .name = MP_QSTR_sha512,
-    .make_new = modngu_hash_sha512_make_new,
-    .locals_dict = (void *)&modngu_hash_sha512_locals_dict,
-};
+static MP_DEFINE_CONST_OBJ_TYPE(
+    modngu_hash_sha512_type,
+    MP_QSTR_sha512,
+    MP_TYPE_FLAG_NONE,
+    make_new, modngu_hash_sha512_make_new,
+    locals_dict, &modngu_hash_sha512_locals_dict
+);
 
 // Tagged sha256 = SHA256(SHA256(tag)||SHA256(tag)||msg)
 static mp_obj_t hm_tagged_sha256(size_t n_args, const mp_obj_t *args) {

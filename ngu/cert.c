@@ -140,13 +140,14 @@ static const mp_rom_map_elem_t cert_locals_dict_table[] = {
 };
 static MP_DEFINE_CONST_DICT(cert_locals_dict, cert_locals_dict_table);
 
-static const mp_obj_type_t cert_type = {
-    { &mp_type_type },
-    .name = MP_QSTR_x509_cert,
-    .print = cert_print,
-    .make_new = cert_make_new,
-    .locals_dict = (void *)&cert_locals_dict,
-};
+static MP_DEFINE_CONST_OBJ_TYPE(
+    cert_type,
+    MP_QSTR_x509_cert,
+    MP_TYPE_FLAG_NONE,
+    print, cert_print,
+    make_new, cert_make_new,
+    locals_dict, &cert_locals_dict
+);
 
 static const mp_rom_map_elem_t globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_cert) },
