@@ -7,7 +7,22 @@ MY_FILES = hash.c modngu.c ec.c cert.c k1.c random.c base32.c codecs.c hm.c \
 			rmd160.c aes.c lib_segwit.c
 
 CFLAGS_USERMOD += -I$(NGU_TOP_DIR)/ngu -I$(NGU_TOP_DIR)/libs
- 
+
+# Optional secp256k1 features: BIP340 Schnorr and MuSig2. Both default ON.
+# Override from the build to save flash, e.g.:
+#     make ... NGU_INCL_MUSIG=0      # Schnorr only, drops MuSig2
+#     make ... NGU_INCL_SCHNORR=0    # drops both (MuSig2 needs Schnorr)
+# extrakeys / ecdh / recovery are always compiled in.
+NGU_INCL_SCHNORR ?= 1
+NGU_INCL_MUSIG   ?= 1
+# MuSig2 requires Schnorr, so disabling Schnorr forces MuSig2 off too. This is
+# the single source of truth for the dependency; k1.c / lib_secp256k1.c just
+# read the resulting -D flags.
+ifeq ($(NGU_INCL_SCHNORR),0)
+NGU_INCL_MUSIG := 0
+endif
+CFLAGS_USERMOD += -DNGU_INCL_SCHNORR=$(NGU_INCL_SCHNORR) -DNGU_INCL_MUSIG=$(NGU_INCL_MUSIG)
+
 FROZEN_MANIFEST += $(NGU_TOP_DIR)/ngu/manifest.py
 
 %/lib_secp256k1.o: \

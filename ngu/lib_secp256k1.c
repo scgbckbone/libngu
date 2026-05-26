@@ -14,6 +14,10 @@
 /* Set window size for ecmult precomputation */
 #define ECMULT_WINDOW_SIZE 2
 
+/* NGU_INCL_SCHNORR / NGU_INCL_MUSIG are set by the build (ngu/micropython.mk),
+   default on; they gate the optional schnorrsig / musig modules below. */
+
+/* Always built: cheap, and the keypair/xonly types are broadly useful. */
 /* Define this symbol to enable the ECDH module */
 #define ENABLE_MODULE_ECDH 1
 
@@ -23,11 +27,16 @@
 /* Define this symbol to enable the ECDSA pubkey recovery module */
 #define ENABLE_MODULE_RECOVERY 1
 
+/* Optional: BIP340 Schnorr (and, transitively, MuSig2). */
 /* Define this symbol to enable the schnorrsig module */
+#if NGU_INCL_SCHNORR
 #define ENABLE_MODULE_SCHNORRSIG 1
+#endif
 
 /* Define this symbol to enable the musig module */
+#if NGU_INCL_MUSIG
 #define ENABLE_MODULE_MUSIG 1
+#endif
 
 #define USE_EXTERNAL_DEFAULT_CALLBACKS
 
