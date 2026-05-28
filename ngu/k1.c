@@ -15,33 +15,13 @@
 #include "my_assert.h"
 
 #include "sec_shared.h"
+#include "k1.h"
 
 #if MICROPY_SSL_MBEDTLS
 #include "mbedtls/sha256.h"
 #else
 #include "extmod/crypto-algorithms/sha256.h"
 #endif
-
-typedef struct  {
-    mp_obj_base_t base;
-    secp256k1_pubkey    pubkey;         // not allocated
-} mp_obj_pubkey_t;
-
-typedef struct  {
-    mp_obj_base_t base;
-    secp256k1_xonly_pubkey    pubkey;         // not allocated
-    int    parity;
-} mp_obj_xonly_pubkey_t;
-
-typedef struct  {
-    mp_obj_base_t base;
-    secp256k1_ecdsa_recoverable_signature   sig;
-} mp_obj_sig_t;
-
-typedef struct  {
-    mp_obj_base_t base;
-    secp256k1_keypair   keypair;
-} mp_obj_keypair_t;
 
 // MuSig2 types
 typedef struct {
@@ -75,10 +55,6 @@ typedef struct {
 } mp_obj_musig_partial_sig_t;
 
 
-STATIC const mp_obj_type_t s_pubkey_type;
-STATIC const mp_obj_type_t s_xonly_pubkey_type;
-STATIC const mp_obj_type_t s_sig_type;
-STATIC const mp_obj_type_t s_keypair_type;
 STATIC const mp_obj_type_t s_musig_pubnonce_type;
 STATIC const mp_obj_type_t s_musig_secnonce_type;
 STATIC const mp_obj_type_t s_musig_aggnonce_type;
@@ -1208,7 +1184,7 @@ STATIC const mp_rom_map_elem_t s_sig_locals_dict_table[] = {
 };
 STATIC MP_DEFINE_CONST_DICT(s_sig_locals_dict, s_sig_locals_dict_table);
 
-STATIC const mp_obj_type_t s_sig_type = {
+const mp_obj_type_t s_sig_type = {
     { &mp_type_type },
     .name = MP_QSTR_secp256k1_sig,
     .make_new = s_sig_make_new,
@@ -1243,14 +1219,14 @@ STATIC const mp_rom_map_elem_t s_xonly_pubkey_locals_dict_table[] = {
 };
 STATIC MP_DEFINE_CONST_DICT(s_xonly_pubkey_locals_dict, s_xonly_pubkey_locals_dict_table);
 
-STATIC const mp_obj_type_t s_pubkey_type = {
+const mp_obj_type_t s_pubkey_type = {
     { &mp_type_type },
     .name = MP_QSTR_secp256k1_pubkey,
     .make_new = s_pubkey_make_new,
     .locals_dict = (void *)&s_pubkey_locals_dict,
 };
 
-STATIC const mp_obj_type_t s_xonly_pubkey_type = {
+const mp_obj_type_t s_xonly_pubkey_type = {
     { &mp_type_type },
     .name = MP_QSTR_secp256k1_xonly_pubkey,
     .make_new = s_xonly_pubkey_make_new,
@@ -1315,7 +1291,7 @@ STATIC const mp_rom_map_elem_t s_keypair_locals_dict_table[] = {
 };
 STATIC MP_DEFINE_CONST_DICT(s_keypair_locals_dict, s_keypair_locals_dict_table);
 
-STATIC const mp_obj_type_t s_keypair_type = {
+const mp_obj_type_t s_keypair_type = {
     { &mp_type_type },
     .name = MP_QSTR_secp256k1_keypair,
     .make_new = s_keypair_make_new,
@@ -1355,4 +1331,3 @@ const mp_obj_module_t mp_module_secp256k1 = {
     .base = { &mp_type_module },
     .globals = (mp_obj_dict_t *)&globals_table_obj,
 };
-

@@ -11,6 +11,7 @@ if not int(os.environ.get('EXCLUDE_NGU_TESTS', 0)):
         "ngu_tests/b39_vectors.py",
         "ngu_tests/b340_vectors.py",
         "ngu_tests/test_aes_gen.py",
+        "ngu_tests/test_antiexfil.py",
         "ngu_tests/test_bip32.py",
         "ngu_tests/test_bip39.py",
         "ngu_tests/test_cert.py",

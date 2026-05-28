@@ -11,6 +11,7 @@ import ngu_tests.test_aes_gen
 import ngu_tests.test_hash
 import ngu_tests.test_hmac
 import ngu_tests.test_random
+import ngu_tests.test_antiexfil
 if hasattr(ngu, 'cert'):
     import ngu_tests.test_cert
 import ngu_tests.test_codecs_gen
