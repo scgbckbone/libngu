@@ -128,7 +128,7 @@ STATIC mp_obj_t s_ctx_rnd(void) {
 STATIC MP_DEFINE_CONST_FUN_OBJ_0(s_ctx_rnd_obj, s_ctx_rnd);
 
 // Read a buffer arg and require an exact length.
-void require_buf_len(mp_obj_t obj, mp_buffer_info_t *buf, size_t len, const char *msg)
+void require_buf_len(mp_obj_t obj, mp_buffer_info_t *buf, size_t len, mp_rom_error_text_t msg)
 {
     mp_get_buffer_raise(obj, buf, MP_BUFFER_READ);
     if(buf->len != len) {
