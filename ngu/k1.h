@@ -28,3 +28,7 @@ extern const mp_obj_type_t s_pubkey_type;
 extern const mp_obj_type_t s_xonly_pubkey_type;
 extern const mp_obj_type_t s_sig_type;
 extern const mp_obj_type_t s_keypair_type;
+
+void require_buf_len(mp_obj_t obj, mp_buffer_info_t *buf, size_t len, const char *msg);
+void get_seckey(mp_obj_t privkey_in, uint8_t seckey[32]);
+void get_keypair(mp_obj_t privkey_in, secp256k1_keypair *keypair);

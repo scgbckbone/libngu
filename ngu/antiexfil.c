@@ -18,39 +18,6 @@ static const uint8_t secp256k1_order[] = {
     0xBF, 0xD2, 0x5E, 0x8C, 0xD0, 0x36, 0x41, 0x41
 };
 
-static void require_buf_len(mp_obj_t obj, mp_buffer_info_t *buf, size_t len, const char *msg)
-{
-    mp_get_buffer_raise(obj, buf, MP_BUFFER_READ);
-    if(buf->len != len) {
-        mp_raise_ValueError(msg);
-    }
-}
-
-static void get_seckey(mp_obj_t privkey_in, uint8_t seckey[32])
-{
-    if(mp_obj_get_type(privkey_in) == &s_keypair_type) {
-        mp_obj_keypair_t *keypair = MP_OBJ_TO_PTR(privkey_in);
-        secp256k1_keypair_sec(lib_ctx, seckey, &keypair->keypair);
-    } else {
-        mp_buffer_info_t privkey;
-        require_buf_len(privkey_in, &privkey, 32, MP_ERROR_TEXT("privkey len != 32"));
-        memcpy(seckey, privkey.buf, 32);
-    }
-}
-
-static void get_keypair(mp_obj_t privkey_in, secp256k1_keypair *keypair)
-{
-    if(mp_obj_get_type(privkey_in) == &s_keypair_type) {
-        *keypair = ((mp_obj_keypair_t *)MP_OBJ_TO_PTR(privkey_in))->keypair;
-    } else {
-        mp_buffer_info_t privkey;
-        require_buf_len(privkey_in, &privkey, 32, MP_ERROR_TEXT("privkey len != 32"));
-        if(!secp256k1_keypair_create(lib_ctx, keypair, privkey.buf)) {
-            mp_raise_ValueError(MP_ERROR_TEXT("invalid secret"));
-        }
-    }
-}
-
 static int bytes32_ge(const uint8_t *a, const uint8_t *b)
 {
     int i;
