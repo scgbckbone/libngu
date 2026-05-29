@@ -173,13 +173,9 @@ STATIC mp_obj_t s_sig_make_new(const mp_obj_type_t *type, size_t n_args, size_t 
     sec_setup_ctx();
 
     mp_buffer_info_t inp;
-    mp_get_buffer_raise(args[0], &inp, MP_BUFFER_READ);
+    // expect raw recid+32+32 bytes
+    require_buf_len(args[0], &inp, 65, MP_ERROR_TEXT("sig len != 65"));
     const uint8_t *bi = (uint8_t *)inp.buf;
-
-    // expect raw recid+32+32 bytes 
-    if(inp.len != 65) {
-        mp_raise_ValueError(MP_ERROR_TEXT("sig len != 65"));
-    }
 
     // in bitcoin world, first byte encodes recid.
     int recid = (bi[0] - 27) & 0x3;
@@ -222,10 +218,7 @@ STATIC mp_obj_t s_xonly_pubkey_make_new(const mp_obj_type_t *type, size_t n_args
     o->base.type = type;
 
     mp_buffer_info_t inp;
-    mp_get_buffer_raise(args[0], &inp, MP_BUFFER_READ);
-    if(inp.len != 32) {
-        mp_raise_ValueError(MP_ERROR_TEXT("xonly pubkey len != 32"));
-    }
+    require_buf_len(args[0], &inp, 32, MP_ERROR_TEXT("xonly pubkey len != 32"));
     int ok = secp256k1_xonly_pubkey_parse(secp256k1_context_static, &o->pubkey, inp.buf);
 
     if(ok != 1) {
@@ -298,10 +291,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_1(s_xonly_pubkey_parity_obj, s_xonly_pubkey_parit
 STATIC mp_obj_t s_xonly_pubkey_tweak_add(mp_obj_t self_in, mp_obj_t tweak32_in) {
     int rc;
     mp_buffer_info_t tweak32;
-    mp_get_buffer_raise(tweak32_in, &tweak32, MP_BUFFER_READ);
-    if(tweak32.len != 32) {
-        mp_raise_ValueError(MP_ERROR_TEXT("tweak32 len != 32"));
-    }
+    require_buf_len(tweak32_in, &tweak32, 32, MP_ERROR_TEXT("tweak32 len != 32"));
     mp_obj_xonly_pubkey_t *self = MP_OBJ_TO_PTR(self_in);
 
     secp256k1_pubkey pk;
@@ -346,10 +336,7 @@ STATIC mp_obj_t s_sig_verify_recover(mp_obj_t self_in, mp_obj_t digest_in)
     mp_obj_sig_t *self = MP_OBJ_TO_PTR(self_in);
 
     mp_buffer_info_t digest;
-    mp_get_buffer_raise(digest_in, &digest, MP_BUFFER_READ);
-    if(digest.len != 32) {
-        mp_raise_ValueError(MP_ERROR_TEXT("md len != 32"));
-    }
+    require_buf_len(digest_in, &digest, 32, MP_ERROR_TEXT("md len != 32"));
 
     mp_obj_pubkey_t *rv = m_new_obj(mp_obj_pubkey_t);
     rv->base.type = &s_pubkey_type;
@@ -370,10 +357,7 @@ STATIC mp_obj_t s_sign(mp_obj_t privkey_in, mp_obj_t digest_in, mp_obj_t counter
     sec_setup_ctx();
 
     mp_buffer_info_t digest;
-    mp_get_buffer_raise(digest_in, &digest, MP_BUFFER_READ);
-    if(digest.len != 32) {
-        mp_raise_ValueError(MP_ERROR_TEXT("md len != 32"));
-    }
+    require_buf_len(digest_in, &digest, 32, MP_ERROR_TEXT("md len != 32"));
 
     uint8_t pk[32];
     get_seckey(privkey_in, pk);
@@ -399,20 +383,14 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_3(s_sign_obj, s_sign);
 
 STATIC mp_obj_t s_verify_schnorr(mp_obj_t compact_sig_in, mp_obj_t digest_in, mp_obj_t xonly_pubkey_in) {
     mp_buffer_info_t compact_sig;
-    mp_get_buffer_raise(compact_sig_in, &compact_sig, MP_BUFFER_READ);
-    if(compact_sig.len != 64) {
-        mp_raise_ValueError(MP_ERROR_TEXT("compact sig len != 64"));
-    }
+    require_buf_len(compact_sig_in, &compact_sig, 64, MP_ERROR_TEXT("compact sig len != 64"));
 
     if(mp_obj_get_type(xonly_pubkey_in) != &s_xonly_pubkey_type) {
         mp_raise_TypeError(MP_ERROR_TEXT("xonly pubkey type"));
     }
 
     mp_buffer_info_t digest;
-    mp_get_buffer_raise(digest_in, &digest, MP_BUFFER_READ);
-    if(digest.len != 32) {
-        mp_raise_ValueError(MP_ERROR_TEXT("md len != 32"));
-    }
+    require_buf_len(digest_in, &digest, 32, MP_ERROR_TEXT("md len != 32"));
 
     mp_obj_xonly_pubkey_t *xonly_pub = MP_OBJ_TO_PTR(xonly_pubkey_in);
     int ok = secp256k1_schnorrsig_verify(secp256k1_context_static, compact_sig.buf, digest.buf, digest.len, &xonly_pub->pubkey);
@@ -429,15 +407,9 @@ STATIC mp_obj_t s_sign_schnorr(mp_obj_t privkey_in, mp_obj_t digest_in, mp_obj_t
     sec_setup_ctx();
 
     mp_buffer_info_t digest;
-    mp_get_buffer_raise(digest_in, &digest, MP_BUFFER_READ);
-    if(digest.len != 32) {
-        mp_raise_ValueError(MP_ERROR_TEXT("md len != 32"));
-    }
+    require_buf_len(digest_in, &digest, 32, MP_ERROR_TEXT("md len != 32"));
     mp_buffer_info_t aux_rand;
-    mp_get_buffer_raise(aux_rand_in, &aux_rand, MP_BUFFER_READ);
-    if(aux_rand.len != 32) {
-        mp_raise_ValueError(MP_ERROR_TEXT("aux rand len != 32"));
-    }
+    require_buf_len(aux_rand_in, &aux_rand, 32, MP_ERROR_TEXT("aux rand len != 32"));
 
     vstr_t rv;
     vstr_init_len(&rv, 64);
@@ -470,11 +442,7 @@ STATIC mp_obj_t s_keypair_make_new(const mp_obj_type_t *type, size_t n_args, siz
         my_random_bytes(seckey, 32);
     } else {
         mp_buffer_info_t inp;
-        mp_get_buffer_raise(args[0], &inp, MP_BUFFER_READ);
-        if(inp.len != 32) {
-            mp_raise_ValueError(MP_ERROR_TEXT("privkey len != 32"));
-        }
-
+        require_buf_len(args[0], &inp, 32, MP_ERROR_TEXT("privkey len != 32"));
         memcpy(seckey, inp.buf, 32);
     }
 
@@ -546,10 +514,7 @@ STATIC mp_obj_t s_keypair_xonly_tweak_add(mp_obj_t self_in, mp_obj_t tweak32_in)
     //  Tweak a keypair by adding tweak32 to the secret key and updating the public
     //  key accordingly.
     mp_buffer_info_t tweak32;
-    mp_get_buffer_raise(tweak32_in, &tweak32, MP_BUFFER_READ);
-    if(tweak32.len != 32) {
-        mp_raise_ValueError(MP_ERROR_TEXT("tweak32 len != 32"));
-    }
+    require_buf_len(tweak32_in, &tweak32, 32, MP_ERROR_TEXT("tweak32 len != 32"));
     mp_obj_keypair_t *self = MP_OBJ_TO_PTR(self_in);
     //  create new tweaked object rather than updating self
     mp_obj_keypair_t *rv = m_new_obj(mp_obj_keypair_t);
@@ -736,10 +701,7 @@ STATIC mp_obj_t s_musig_pubkey_ec_tweak_add(mp_obj_t keyagg_cache_in, mp_obj_t t
     mp_obj_musig_keyagg_cache_t *cache = MP_OBJ_TO_PTR(keyagg_cache_in);
 
     mp_buffer_info_t tweak32;
-    mp_get_buffer_raise(tweak32_in, &tweak32, MP_BUFFER_READ);
-    if(tweak32.len != 32) {
-        mp_raise_ValueError(MP_ERROR_TEXT("tweak32 len != 32"));
-    }
+    require_buf_len(tweak32_in, &tweak32, 32, MP_ERROR_TEXT("tweak32 len != 32"));
 
     mp_obj_pubkey_t *res = m_new_obj(mp_obj_pubkey_t);
     res->base.type = &s_pubkey_type;
@@ -764,10 +726,7 @@ STATIC mp_obj_t s_musig_pubkey_xonly_tweak_add(mp_obj_t keyagg_cache_in, mp_obj_
     mp_obj_musig_keyagg_cache_t *cache = MP_OBJ_TO_PTR(keyagg_cache_in);
 
     mp_buffer_info_t tweak32;
-    mp_get_buffer_raise(tweak32_in, &tweak32, MP_BUFFER_READ);
-    if(tweak32.len != 32) {
-        mp_raise_ValueError(MP_ERROR_TEXT("tweak32 len != 32"));
-    }
+    require_buf_len(tweak32_in, &tweak32, 32, MP_ERROR_TEXT("tweak32 len != 32"));
 
     mp_obj_pubkey_t *res = m_new_obj(mp_obj_pubkey_t);
     res->base.type = &s_pubkey_type;
@@ -810,10 +769,7 @@ STATIC mp_obj_t s_musig_nonce_gen(size_t n_args, const mp_obj_t *pos_args, mp_ma
     uint8_t session_secrand[32];
     if (args[1].u_obj != mp_const_none) {
         mp_buffer_info_t secrand;
-        mp_get_buffer_raise(args[1].u_obj, &secrand, MP_BUFFER_READ);
-        if(secrand.len != 32) {
-            mp_raise_ValueError(MP_ERROR_TEXT("session secrand len != 32"));
-        }
+        require_buf_len(args[1].u_obj, &secrand, 32, MP_ERROR_TEXT("session secrand len != 32"));
         memcpy(session_secrand, (uint8_t *)secrand.buf, 32);
     } else {
 	    my_random_bytes(session_secrand, 32);
@@ -824,10 +780,7 @@ STATIC mp_obj_t s_musig_nonce_gen(size_t n_args, const mp_obj_t *pos_args, mp_ma
     uint8_t seckey_buf[32];
     if (args[2].u_obj != mp_const_none) {
         mp_buffer_info_t sk;
-        mp_get_buffer_raise(args[2].u_obj, &sk, MP_BUFFER_READ);
-        if(sk.len != 32) {
-            mp_raise_ValueError(MP_ERROR_TEXT("seckey len != 32"));
-        }
+        require_buf_len(args[2].u_obj, &sk, 32, MP_ERROR_TEXT("seckey len != 32"));
         memcpy(seckey_buf, (uint8_t *)sk.buf, 32);
         seckey = seckey_buf;
     }
@@ -837,10 +790,7 @@ STATIC mp_obj_t s_musig_nonce_gen(size_t n_args, const mp_obj_t *pos_args, mp_ma
     uint8_t msg_buf[32];
     if (args[3].u_obj != mp_const_none) {
         mp_buffer_info_t msg;
-        mp_get_buffer_raise(args[3].u_obj, &msg, MP_BUFFER_READ);
-        if(msg.len != 32) {
-            mp_raise_ValueError(MP_ERROR_TEXT("msg len != 32"));
-        }
+        require_buf_len(args[3].u_obj, &msg, 32, MP_ERROR_TEXT("msg len != 32"));
         memcpy(msg_buf, (uint8_t *)msg.buf, 32);
         msg32 = msg_buf;
     }
@@ -860,10 +810,7 @@ STATIC mp_obj_t s_musig_nonce_gen(size_t n_args, const mp_obj_t *pos_args, mp_ma
     uint8_t extra32_buf[32];
     if (args[5].u_obj != mp_const_none) {
         mp_buffer_info_t extra32;
-        mp_get_buffer_raise(args[5].u_obj, &extra32, MP_BUFFER_READ);
-        if(extra32.len != 32) {
-            mp_raise_ValueError(MP_ERROR_TEXT("extra input len != 32"));
-        }
+        require_buf_len(args[5].u_obj, &extra32, 32, MP_ERROR_TEXT("extra input len != 32"));
         memcpy(extra32_buf, (uint8_t *)extra32.buf, 32);
         extra_input32 = extra32_buf;
     }
@@ -912,10 +859,7 @@ STATIC mp_obj_t s_pubnonce_make_new(const mp_obj_type_t *type, size_t n_args, si
     self->base.type = type;
 
     mp_buffer_info_t pubnonce66;
-    mp_get_buffer_raise(args[0], &pubnonce66, MP_BUFFER_READ);
-    if(pubnonce66.len != 66) {
-        mp_raise_ValueError(MP_ERROR_TEXT("musig pubnonce len != 66"));
-    }
+    require_buf_len(args[0], &pubnonce66, 66, MP_ERROR_TEXT("musig pubnonce len != 66"));
 
     int ok = secp256k1_musig_pubnonce_parse(secp256k1_context_static, &self->pubnonce, pubnonce66.buf);
 
@@ -948,10 +892,7 @@ STATIC mp_obj_t s_aggnonce_make_new(const mp_obj_type_t *type, size_t n_args, si
     self->base.type = type;
 
     mp_buffer_info_t aggnonce66;
-    mp_get_buffer_raise(args[0], &aggnonce66, MP_BUFFER_READ);
-    if(aggnonce66.len != 66) {
-        mp_raise_ValueError(MP_ERROR_TEXT("musig aggnonce len != 66"));
-    }
+    require_buf_len(args[0], &aggnonce66, 66, MP_ERROR_TEXT("musig aggnonce len != 66"));
 
     int ok = secp256k1_musig_aggnonce_parse(secp256k1_context_static, &self->aggnonce, aggnonce66.buf);
 
@@ -1010,10 +951,7 @@ STATIC mp_obj_t s_musig_nonce_process(mp_obj_t aggnonce_in, mp_obj_t msg32_in, m
     mp_obj_musig_aggnonce_t *an = MP_OBJ_TO_PTR(aggnonce_in);
 
     mp_buffer_info_t msg32;
-    mp_get_buffer_raise(msg32_in, &msg32, MP_BUFFER_READ);
-    if(msg32.len != 32) {
-        mp_raise_ValueError(MP_ERROR_TEXT("msg len != 32"));
-    }
+    require_buf_len(msg32_in, &msg32, 32, MP_ERROR_TEXT("msg len != 32"));
 
     mp_obj_musig_keyagg_cache_t *cache = MP_OBJ_TO_PTR(keyagg_cache_in);
 
@@ -1040,10 +978,7 @@ STATIC mp_obj_t s_musig_partial_sig_make_new(const mp_obj_type_t *type, size_t n
     self->base.type = type;
 
     mp_buffer_info_t part_sig32;
-    mp_get_buffer_raise(args[0], &part_sig32, MP_BUFFER_READ);
-    if(part_sig32.len != 32) {
-        mp_raise_ValueError(MP_ERROR_TEXT("musig partial signature len != 32"));
-    }
+    require_buf_len(args[0], &part_sig32, 32, MP_ERROR_TEXT("musig partial signature len != 32"));
 
     int ok = secp256k1_musig_partial_sig_parse(secp256k1_context_static, &self->sig, part_sig32.buf);
     if (!ok) {
