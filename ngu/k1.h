@@ -28,5 +28,3 @@ extern const mp_obj_type_t s_pubkey_type;
 extern const mp_obj_type_t s_xonly_pubkey_type;
 extern const mp_obj_type_t s_sig_type;
 extern const mp_obj_type_t s_keypair_type;
-
-void sec_setup_ctx(void);

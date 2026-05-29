@@ -38,6 +38,19 @@ static void get_seckey(mp_obj_t privkey_in, uint8_t seckey[32])
     }
 }
 
+static void get_keypair(mp_obj_t privkey_in, secp256k1_keypair *keypair)
+{
+    if(mp_obj_get_type(privkey_in) == &s_keypair_type) {
+        *keypair = ((mp_obj_keypair_t *)MP_OBJ_TO_PTR(privkey_in))->keypair;
+    } else {
+        mp_buffer_info_t privkey;
+        require_buf_len(privkey_in, &privkey, 32, MP_ERROR_TEXT("privkey len != 32"));
+        if(!secp256k1_keypair_create(lib_ctx, keypair, privkey.buf)) {
+            mp_raise_ValueError(MP_ERROR_TEXT("invalid secret"));
+        }
+    }
+}
+
 static int bytes32_ge(const uint8_t *a, const uint8_t *b)
 {
     int i;
@@ -225,7 +238,6 @@ STATIC mp_obj_t s_antiexfil_sign_schnorr(size_t n_args, const mp_obj_t *args)
     mp_buffer_info_t digest;
     mp_buffer_info_t q_in;
     mp_buffer_info_t rho;
-    uint8_t seckey[32];
     uint8_t q[32];
     uint8_t Q32[32];
     uint8_t tweak[32];
@@ -236,15 +248,10 @@ STATIC mp_obj_t s_antiexfil_sign_schnorr(size_t n_args, const mp_obj_t *args)
     int parity = 0;
     int ok;
 
-    get_seckey(args[0], seckey);
+    get_keypair(args[0], &keypair);
     require_buf_len(args[1], &digest, 32, MP_ERROR_TEXT("md len != 32"));
     require_buf_len(args[2], &q_in, 32, MP_ERROR_TEXT("q len != 32"));
     require_buf_len(args[3], &rho, 32, MP_ERROR_TEXT("rho len != 32"));
-
-    ok = secp256k1_keypair_create(lib_ctx, &keypair, seckey);
-    if (!ok) {
-        mp_raise_ValueError(MP_ERROR_TEXT("invalid secret"));
-    }
 
     memcpy(q, q_in.buf, 32);
     ok = secp256k1_ec_pubkey_create(lib_ctx, &Q_pub, q);
