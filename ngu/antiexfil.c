@@ -7,8 +7,7 @@
 #include "k1.h"
 
 static const uint8_t antiexfil_tweak_tag[] = {
-    'N', 'G', 'u', '/', 'A', 'n', 't', 'i', 'E', 'x', 'f', 'i', 'l',
-    '/', 't', 'w', 'e', 'a', 'k'
+    'B', 'I', 'P', '0', 'X', 'Y', 'Z', '/', 'n', 'o', 'n', 'c', 'e'
 };
 
 static const uint8_t secp256k1_order[] = {
