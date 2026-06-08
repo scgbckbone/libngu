@@ -90,7 +90,9 @@ static int antiexfil_nonce_ecdsa(
     (void)msg32;
     (void)key32;
     (void)algo16;
-    (void)counter;
+    if (counter != 0) {
+        return 0;
+    }
     memcpy(nonce32, (uint8_t*)data, 32);
     return 1;
 }
