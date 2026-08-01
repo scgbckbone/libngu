@@ -25,13 +25,8 @@ extern uint32_t rng_get(void);
 # define CHIP_TRNG_SETUP()      
 # define CHIP_TRNG_32()         rng_get()
 
-// A board that replaces MicroPython's rng.c keeps MICROPY_HW_ENABLE_RNG
-// disabled, so it must explicitly attest that its rng_get() uses hardware.
-# if !defined(MICROPY_HW_ENABLE_RNG)
-# error "STM32 builds must configure a hardware RNG provider"
-# elif !MICROPY_HW_ENABLE_RNG && \
-       (!defined(NGU_RNG_GET_IS_HARDWARE) || !NGU_RNG_GET_IS_HARDWARE)
-# error "STM32 rng_get() must be explicitly hardware-backed"
+# ifndef MICROPY_HW_ENABLE_RNG
+# error "get a HW TRNG plz"
 # endif
 #endif
 

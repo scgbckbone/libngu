@@ -48,11 +48,3 @@ or for single test:
 make -f makefile.stm32 
 ```
 
-### STM32 random-number provider
-
-On STM32, libngu requires `rng_get()` to be backed by a hardware random-number
-generator. Boards using MicroPython's standard hardware RNG set
-`MICROPY_HW_ENABLE_RNG` to a true value. A board that replaces MicroPython's
-RNG implementation while leaving that setting disabled must define
-`NGU_RNG_GET_IS_HARDWARE=1` as an explicit security assertion.
-

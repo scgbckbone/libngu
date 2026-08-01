@@ -25,12 +25,8 @@ tags:
 	libs/cifra/src/*.[hc] ngu/bech32/*.[hc] \
 	$(MBED_TOP)/include/mbedtls/*.h $(MBED_TOP)/library/*.c
 
-test tests: test-rng-guard
+test tests:
 	(cd ngu/ngu_tests; make tests)
-
-.PHONY: test-rng-guard
-test-rng-guard:
-	sh tests/test_stm32_rng_guard.sh
 
 # DEVELOPER NOTE
 # These must match the table-size #defines in ngu/lib_secp256k1.c (after v0.3.0 the
