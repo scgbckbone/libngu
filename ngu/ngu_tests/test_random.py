@@ -1,6 +1,23 @@
 
 import ngu
 
+
+def must_raise(exc, fn, arg):
+    try:
+        fn(arg)
+    except exc:
+        pass
+    else:
+        raise AssertionError('%s did not reject %r' % (fn, arg))
+
+
+# Allocation boundaries. In particular, -1 used to wrap the vstr allocation
+# length and then reach my_random_bytes() as UINT32_MAX.
+must_raise(ValueError, ngu.random.bytes, -1)
+assert ngu.random.bytes(0) == b''
+assert len(ngu.random.bytes(4096)) == 4096
+must_raise(ValueError, ngu.random.bytes, 4097)
+
 for trial in range(100):
     v = [ngu.random.uint32() for i in range(100)]
     assert len(v) == len(set(v)), 'bad luck, try again'
@@ -32,12 +49,7 @@ for mx in range(10, 2000, 73):
 
 # reseed API boundaries
 for seed in (b'', bytes(31)):
-    try:
-        ngu.random.reseed(seed)
-    except ValueError:
-        pass
-    else:
-        raise AssertionError('short seed accepted')
+    must_raise(ValueError, ngu.random.reseed, seed)
 
 try:
     ngu.random.reseed(123)

@@ -1,10 +1,26 @@
-// 
+//
 // random - RNG stuff
 //
 // - common interface to TRNG specific to your chip
 // - whitening
 // - pick new privkeys
 //
+#ifdef NGU_RANDOM_TEST
+#include <assert.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <string.h>
+#include "cifra/drbg.h"
+#include "cifra/ext/handy.h"
+
+extern uint32_t ngu_random_test_chip_trng_32(void);
+extern void ngu_random_test_fault(void);
+
+#define CHIP_TRNG_SETUP()
+#define CHIP_TRNG_32() ngu_random_test_chip_trng_32()
+#define RANDOM_FAULT() ngu_random_test_fault()
+#else
 #include "py/runtime.h"
 #include "py/mperrno.h"
 #include <string.h>
@@ -13,6 +29,9 @@
 #include "my_assert.h"
 #include "cifra/drbg.h"
 #include "cifra/ext/handy.h"
+#include "stm32_rng_guard.h"
+
+#define RANDOM_FAULT() mp_raise_OSError(MP_EFAULT)
 
 // ESP32 code
 #ifdef ESP_PLATFORM
@@ -26,10 +45,6 @@
 extern uint32_t rng_get(void);
 # define CHIP_TRNG_SETUP()      
 # define CHIP_TRNG_32()         rng_get()
-
-# ifndef MICROPY_HW_ENABLE_RNG
-# error "get a HW TRNG plz"
-# endif
 #endif
 
 #if defined(__APPLE__) || defined(__FreeBSD__)
@@ -47,6 +62,7 @@ extern uint32_t rng_get(void);
 # define CHIP_TRNG_SETUP()
 # define CHIP_TRNG_32()         0x5a5a5a5a
 #endif
+#endif // NGU_RANDOM_TEST
 
 static cf_hash_drbg_sha256 drbg;
 static bool drbg_ready;
@@ -60,7 +76,7 @@ static uint32_t checked_chip_trng(void)
 
     if(!chip || chip == last_chip) {
         // maybe TRNG is not clocked? Fail hard
-        mp_raise_OSError(MP_EFAULT);
+        RANDOM_FAULT();
     }
     last_chip = chip;
 
@@ -113,8 +129,8 @@ void my_random_bytes(uint8_t *dest, uint32_t count)
     while(count) {
         uint32_t chip = checked_chip_trng();
 
-        int here = MIN(4, count);
-        for(int i = 0; i < here; i++) {
+        uint32_t here = MIN(4u, count);
+        for(uint32_t i = 0; i < here; i++) {
             dest[i] ^= ((uint8_t *)&chip)[i];
         }
         dest += here;
@@ -122,6 +138,7 @@ void my_random_bytes(uint8_t *dest, uint32_t count)
     }
 }
 
+#ifndef NGU_RANDOM_TEST
 STATIC mp_obj_t random_uint32(void) {
     // full 32-bit values, not 30
     CHIP_TRNG_SETUP();
@@ -132,6 +149,7 @@ STATIC mp_obj_t random_uint32(void) {
     return mp_obj_new_int_from_uint(rv);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_0(random_uint32_obj, random_uint32);
+#endif
 
 int _bit_length(uint32_t x)
 {
@@ -144,6 +162,17 @@ int _bit_length(uint32_t x)
     return bits;
 }
 
+static uint32_t rand_below_mask(int bits)
+{
+    assert(bits > 0 && bits < 31);
+    return (1u << bits) - 1;
+}
+
+static bool random_bytes_count_valid(int count)
+{
+    return count >= 0 && count <= 4096;
+}
+
 int _rand_below(int mx)
 {
     if(mx <= 1) return 0;
@@ -153,7 +182,7 @@ int _rand_below(int mx)
 
     CHIP_TRNG_SETUP();
 
-    uint32_t mask = (2 << bl)-1;
+    uint32_t mask = rand_below_mask(bl);
 
     while(1) {
         uint32_t pt;
@@ -165,6 +194,7 @@ int _rand_below(int mx)
     }
 }
 
+#ifndef NGU_RANDOM_TEST
 STATIC mp_obj_t random_uniform(mp_obj_t mx_in) {
     int mx = mp_obj_get_int_truncated(mx_in);
 
@@ -176,8 +206,8 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_1(random_uniform_obj, random_uniform);
 STATIC mp_obj_t random_bytes(mp_obj_t count_in)
 {
     int count = mp_obj_get_int_truncated(count_in);
-    if(count > 4096) {
-        mp_raise_ValueError(MP_ERROR_TEXT("too many"));
+    if(!random_bytes_count_valid(count)) {
+        mp_raise_ValueError(MP_ERROR_TEXT("out of range"));
     }
 
     vstr_t rv;
@@ -220,3 +250,4 @@ const mp_obj_module_t mp_module_random = {
     .base = { &mp_type_module },
     .globals = (mp_obj_dict_t *)&globals_table_obj,
 };
+#endif // NGU_RANDOM_TEST
