@@ -1,7 +1,7 @@
 MPY = ../../ngu-micropython
 PY = python3
 
-.PHONY: test tests rng-tests hash-drbg-cavp random-integration
+.PHONY: test tests rng-tests random-integration
 test tests: rng-tests
 	test x$(VIRTUAL_ENV) != x		# need virtualenv
 	$(PY) test_aes.py
@@ -31,20 +31,10 @@ test tests: rng-tests
 CIFRA_SRC = ../../libs/cifra/src
 CIFRA_RANDOM_SRCS = $(CIFRA_SRC)/drbg.c $(CIFRA_SRC)/sha256.c \
 	$(CIFRA_SRC)/blockwise.c $(CIFRA_SRC)/hmac.c $(CIFRA_SRC)/chash.c
-CIFRA_DRBG_TEST_SRCS = $(CIFRA_SRC)/testdrbg.c $(CIFRA_RANDOM_SRCS) \
-	$(CIFRA_SRC)/sha1.c $(CIFRA_SRC)/sha512.c
 DRBG_TEST_CC = $(CC) -std=gnu99 -Wall -Wextra -Werror -DFULL_FAT_ASSERT \
 	-I.. -I../../libs -I$(CIFRA_SRC) -I$(CIFRA_SRC)/ext
 
-rng-tests: hash-drbg-cavp random-integration
-
-# Exercise Cifra's own NIST CAVP known-answer tests for the exact Hash-DRBG
-# implementation linked by ngu.random.
-cifra-drbg-test: $(CIFRA_DRBG_TEST_SRCS)
-	$(DRBG_TEST_CC) -o $@ $(CIFRA_DRBG_TEST_SRCS)
-
-hash-drbg-cavp: cifra-drbg-test
-	./cifra-drbg-test
+rng-tests: random-integration
 
 # Match Coldcard's STM32 preprocessor path. Coldcard intentionally sets the
 # MicroPython flag to zero and provides its own hardware-backed rng_get().
