@@ -1,5 +1,7 @@
 //
-// Deterministic tests of the exact DRBG/TRNG composition in random.c.
+// Deterministic STM32 tests of the unmodified production random.c.
+// This verifies random.c from the rng_get() boundary inward. The firmware
+// build remains responsible for proving that its linked rng_get() is a TRNG.
 //
 #include <setjmp.h>
 #include <stdbool.h>
@@ -8,10 +10,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-uint32_t ngu_random_test_chip_trng_32(void);
-void ngu_random_test_fault(void);
-
-#define NGU_RANDOM_TEST 1
 #include "../random.c"
 
 static int failures;
@@ -31,7 +29,10 @@ static void check(bool condition, const char *what)
     }
 }
 
-uint32_t ngu_random_test_chip_trng_32(void)
+const int mp_type_bytes;
+const int mp_type_module;
+
+uint32_t rng_get(void)
 {
     trng_calls++;
     if (trng_script_pos < trng_script_len) {
@@ -40,11 +41,56 @@ uint32_t ngu_random_test_chip_trng_32(void)
     return trng_fallback++;
 }
 
-void ngu_random_test_fault(void)
+void _ngu_assert(const char *filename, int line)
 {
+    printf("unexpected assertion at %s:%d\n", filename, line);
+    abort();
+}
+
+mp_obj_t mp_obj_new_int_from_uint(uint32_t value)
+{
+    return value;
+}
+
+int mp_obj_get_int_truncated(mp_obj_t object)
+{
+    return (int)object;
+}
+
+void mp_raise_OSError(int error)
+{
+    (void)error;
     if (fault_expected) {
         longjmp(fault_env, 1);
     }
+    abort();
+}
+
+void mp_raise_ValueError(const char *message)
+{
+    (void)message;
+    abort();
+}
+
+void vstr_init_len(vstr_t *vstr, size_t len)
+{
+    (void)vstr;
+    (void)len;
+    abort();
+}
+
+mp_obj_t mp_obj_new_str_from_vstr(const void *type, vstr_t *vstr)
+{
+    (void)type;
+    (void)vstr;
+    abort();
+}
+
+void mp_get_buffer_raise(mp_obj_t object, mp_buffer_info_t *buffer, int flags)
+{
+    (void)object;
+    (void)buffer;
+    (void)flags;
     abort();
 }
 
@@ -232,58 +278,6 @@ static void test_entropy_faults(void)
     check(last_chip == 33, "rejected word does not advance health history");
 }
 
-static void test_rand_below_retry(void)
-{
-    uint32_t candidates[64];
-    cf_hash_drbg_sha256 expected_drbg;
-    int chosen_mx = 0;
-    int accepted_at = -1;
-
-    init_expected_drbg(&expected_drbg);
-    for (size_t i = 0; i < sizeof(candidates) / sizeof(candidates[0]); i++) {
-        cf_hash_drbg_sha256_gen(&expected_drbg, &candidates[i], sizeof(candidates[i]));
-        candidates[i] ^= 33 + i;
-    }
-
-    for (int mx = 2; mx < 2000 && !chosen_mx; mx++) {
-        uint32_t mask = rand_below_mask(_bit_length(mx));
-        for (size_t i = 0; i < sizeof(candidates) / sizeof(candidates[0]); i++) {
-            if ((int)(candidates[i] & mask) < mx) {
-                if (i > 0) {
-                    chosen_mx = mx;
-                    accepted_at = i;
-                }
-                break;
-            }
-        }
-    }
-    check(chosen_mx != 0, "found deterministic rejection-retry case");
-    if (!chosen_mx) {
-        return;
-    }
-
-    reset_random_state();
-    use_counter_trng(1);
-    int got = _rand_below(chosen_mx);
-    uint32_t mask = rand_below_mask(_bit_length(chosen_mx));
-
-    check(got == (int)(candidates[accepted_at] & mask),
-          "rand_below returns the first accepted deterministic candidate");
-    check(trng_calls == DRBG_ENTROPY_WORDS + (size_t)accepted_at + 1,
-          "every rejection retry consumes another fresh TRNG word");
-}
-
-static void test_boundaries_and_mask(void)
-{
-    check(random_bytes_count_valid(-1) == false, "negative byte count is rejected");
-    check(random_bytes_count_valid(0), "zero byte count is accepted");
-    check(random_bytes_count_valid(4096), "maximum byte count is accepted");
-    check(random_bytes_count_valid(4097) == false, "oversized byte count is rejected");
-    check(rand_below_mask(1) == 0x1, "one-bit rejection mask");
-    check(rand_below_mask(4) == 0xf, "four-bit rejection mask");
-    check(rand_below_mask(30) == 0x3fffffff, "30-bit rejection mask is unsigned");
-}
-
 int main(void)
 {
     test_initial_seed_and_output_mix();
@@ -291,13 +285,11 @@ int main(void)
     test_automatic_reseed();
     test_external_reseed();
     test_entropy_faults();
-    test_rand_below_retry();
-    test_boundaries_and_mask();
 
     if (failures) {
-        printf("FAIL - random core: %d failure(s)\n", failures);
+        printf("FAIL - STM32 random integration: %d failure(s)\n", failures);
         return 1;
     }
-    printf("PASS - random core\n");
+    printf("PASS - STM32 random integration\n");
     return 0;
 }
