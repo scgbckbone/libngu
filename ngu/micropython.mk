@@ -6,6 +6,10 @@ MY_FILES = hash.c modngu.c ec.c cert.c k1.c random.c base32.c codecs.c hm.c \
 			libbase58.c hdnode.c my_assert.c lib_secp256k1.c \
 			rmd160.c aes.c lib_segwit.c
 
+ifneq ($(EXCLUDE_NGU_TESTS),1)
+MY_FILES += ngu_tests/random_stm32_test.c
+endif
+
 CFLAGS_USERMOD += -I$(NGU_TOP_DIR)/ngu -I$(NGU_TOP_DIR)/libs
  
 FROZEN_MANIFEST += $(NGU_TOP_DIR)/ngu/manifest.py

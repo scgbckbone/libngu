@@ -1,8 +1,7 @@
 MPY = ../../ngu-micropython
 PY = python3
 
-.PHONY: test tests rng-tests random-integration
-test tests: rng-tests
+test tests:
 	test x$(VIRTUAL_ENV) != x		# need virtualenv
 	$(PY) test_aes.py
 	$(MPY) test_aes_gen.py
@@ -27,27 +26,6 @@ test tests: rng-tests
 	$(PY) test_bip39.py
 	$(MPY) test_bip39.py
 	$(MPY) test_bip32.py
-
-CIFRA_SRC = ../../libs/cifra/src
-CIFRA_RANDOM_SRCS = $(CIFRA_SRC)/drbg.c $(CIFRA_SRC)/sha256.c \
-	$(CIFRA_SRC)/blockwise.c $(CIFRA_SRC)/hmac.c $(CIFRA_SRC)/chash.c
-DRBG_TEST_CC = $(CC) -std=gnu99 -Wall -Wextra -Werror -DFULL_FAT_ASSERT \
-	-I.. -I../../libs -I$(CIFRA_SRC) -I$(CIFRA_SRC)/ext
-
-rng-tests: random-integration
-
-# Match Coldcard's STM32 preprocessor path. Coldcard intentionally sets the
-# MicroPython flag to zero and provides its own hardware-backed rng_get().
-RANDOM_STM32_TEST_FLAGS = -U__linux__ -DMICROPY_PY_STM=1 \
-	-DMICROPY_HW_ENABLE_RNG=0 -Imp_stubs -Wno-sign-compare
-
-random-core-test: random_core_test.c ../random.c mp_stubs/py/runtime.h \
-		mp_stubs/py/mperrno.h $(CIFRA_RANDOM_SRCS)
-	$(DRBG_TEST_CC) $(RANDOM_STM32_TEST_FLAGS) -o $@ \
-		random_core_test.c $(CIFRA_RANDOM_SRCS)
-
-random-integration: random-core-test
-	./random-core-test
 
 # runs the test compiled in, not here
 # or, on target
