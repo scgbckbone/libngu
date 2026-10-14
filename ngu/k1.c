@@ -15,7 +15,7 @@
 #include "my_assert.h"
 #include "cifra/ext/handy.h"
 
-#include "sec_shared.h"
+#include "k1.h"
 
 // NGU_INCL_SCHNORR / NGU_INCL_MUSIG are set by the build (ngu/micropython.mk),
 // default off. They gate the optional BIP340 Schnorr and MuSig2 bindings below.
@@ -25,27 +25,6 @@
 #else
 #include "extmod/crypto-algorithms/sha256.h"
 #endif
-
-typedef struct  {
-    mp_obj_base_t base;
-    secp256k1_pubkey    pubkey;         // not allocated
-} mp_obj_pubkey_t;
-
-typedef struct  {
-    mp_obj_base_t base;
-    secp256k1_xonly_pubkey    pubkey;         // not allocated
-    int    parity;
-} mp_obj_xonly_pubkey_t;
-
-typedef struct  {
-    mp_obj_base_t base;
-    secp256k1_ecdsa_recoverable_signature   sig;
-} mp_obj_sig_t;
-
-typedef struct  {
-    mp_obj_base_t base;
-    secp256k1_keypair   keypair;
-} mp_obj_keypair_t;
 
 #if NGU_INCL_MUSIG
 // MuSig2 types
@@ -80,11 +59,6 @@ typedef struct {
 } mp_obj_musig_partial_sig_t;
 #endif // NGU_INCL_MUSIG
 
-
-STATIC const mp_obj_type_t s_pubkey_type;
-STATIC const mp_obj_type_t s_xonly_pubkey_type;
-STATIC const mp_obj_type_t s_sig_type;
-STATIC const mp_obj_type_t s_keypair_type;
 #if NGU_INCL_MUSIG
 STATIC const mp_obj_type_t s_musig_pubnonce_type;
 STATIC const mp_obj_type_t s_musig_secnonce_type;
@@ -522,6 +496,14 @@ STATIC mp_obj_t s_keypair_make_new(const mp_obj_type_t *type, size_t n_args, siz
 
 
 // keypair METHODS
+
+// Explicitly erase a keypair, including when a signing protocol aborts.
+STATIC mp_obj_t s_keypair_clear(mp_obj_t self_in) {
+    mp_obj_keypair_t *self = MP_OBJ_TO_PTR(self_in);
+    mem_clean(&self->keypair, sizeof self->keypair);
+    return mp_const_none;
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_1(s_keypair_clear_obj, s_keypair_clear);
 
 STATIC mp_obj_t s_keypair_privkey(mp_obj_t self_in) {
     mp_obj_keypair_t *self = MP_OBJ_TO_PTR(self_in);
@@ -1228,7 +1210,7 @@ STATIC const mp_rom_map_elem_t s_sig_locals_dict_table[] = {
 };
 STATIC MP_DEFINE_CONST_DICT(s_sig_locals_dict, s_sig_locals_dict_table);
 
-STATIC const mp_obj_type_t s_sig_type = {
+const mp_obj_type_t s_sig_type = {
     { &mp_type_type },
     .name = MP_QSTR_secp256k1_sig,
     .make_new = s_sig_make_new,
@@ -1249,14 +1231,14 @@ STATIC const mp_rom_map_elem_t s_xonly_pubkey_locals_dict_table[] = {
 };
 STATIC MP_DEFINE_CONST_DICT(s_xonly_pubkey_locals_dict, s_xonly_pubkey_locals_dict_table);
 
-STATIC const mp_obj_type_t s_pubkey_type = {
+const mp_obj_type_t s_pubkey_type = {
     { &mp_type_type },
     .name = MP_QSTR_secp256k1_pubkey,
     .make_new = s_pubkey_make_new,
     .locals_dict = (void *)&s_pubkey_locals_dict,
 };
 
-STATIC const mp_obj_type_t s_xonly_pubkey_type = {
+const mp_obj_type_t s_xonly_pubkey_type = {
     { &mp_type_type },
     .name = MP_QSTR_secp256k1_xonly_pubkey,
     .make_new = s_xonly_pubkey_make_new,
@@ -1335,6 +1317,7 @@ STATIC const mp_obj_type_t s_musig_secnonce_type = {
 
 // privkeys and what you can do with them
 STATIC const mp_rom_map_elem_t s_keypair_locals_dict_table[] = {
+    { MP_ROM_QSTR(MP_QSTR_clear), MP_ROM_PTR(&s_keypair_clear_obj) },
     { MP_ROM_QSTR(MP_QSTR_privkey), MP_ROM_PTR(&s_keypair_privkey_obj) },
     { MP_ROM_QSTR(MP_QSTR_pubkey), MP_ROM_PTR(&s_keypair_pubkey_obj) },
     { MP_ROM_QSTR(MP_QSTR_xonly_pubkey), MP_ROM_PTR(&s_keypair_xonly_pubkey_obj) },
@@ -1343,7 +1326,7 @@ STATIC const mp_rom_map_elem_t s_keypair_locals_dict_table[] = {
 };
 STATIC MP_DEFINE_CONST_DICT(s_keypair_locals_dict, s_keypair_locals_dict_table);
 
-STATIC const mp_obj_type_t s_keypair_type = {
+const mp_obj_type_t s_keypair_type = {
     { &mp_type_type },
     .name = MP_QSTR_secp256k1_keypair,
     .make_new = s_keypair_make_new,

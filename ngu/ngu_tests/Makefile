@@ -17,6 +17,7 @@ test tests: hash-drbg-cavp gates
 	$(MPY) test_codecs_gen.py
 	$(MPY) test_random.py
 	$(PY) test_k1.py
+	$(MPY) test_antiexfil.py
 	$(MPY) test_k1.py
 	$(MPY) test_k1_gen.py
 	$(MPY) test_schnorr.py

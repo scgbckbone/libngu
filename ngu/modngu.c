@@ -15,6 +15,7 @@
 // All submodules here.
 extern const mp_obj_module_t mp_module_hash;
 extern const mp_obj_module_t mp_module_secp256k1;
+extern const mp_obj_module_t mp_module_antiexfil;
 extern const mp_obj_module_t mp_module_random;
 extern const mp_obj_module_t mp_module_codecs;
 extern const mp_obj_module_t mp_module_hdnode;
@@ -35,6 +36,7 @@ STATIC const mp_rom_map_elem_t mp_module_ngu_globals_table[] = {
 
     { MP_ROM_QSTR(MP_QSTR_hdnode), MP_ROM_PTR(&mp_module_hdnode) },
     { MP_ROM_QSTR(MP_QSTR_hash), MP_ROM_PTR(&mp_module_hash) },
+    { MP_ROM_QSTR(MP_QSTR_antiexfil), MP_ROM_PTR(&mp_module_antiexfil) },
     { MP_ROM_QSTR(MP_QSTR_secp256k1), MP_ROM_PTR(&mp_module_secp256k1) },
     { MP_ROM_QSTR(MP_QSTR_random), MP_ROM_PTR(&mp_module_random) },
     { MP_ROM_QSTR(MP_QSTR_codecs), MP_ROM_PTR(&mp_module_codecs) },
