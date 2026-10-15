@@ -5,31 +5,6 @@
 #include "cifra/ext/handy.h"
 #include <string.h>
 
-static const uint8_t order[32] = {
-    0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
-    0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xfe,
-    0xba,0xae,0xdc,0xe6,0xaf,0x48,0xa0,0x3b,
-    0xbf,0xd2,0x5e,0x8c,0xd0,0x36,0x41,0x41
-};
-
-// A 256-bit value needs at most one subtraction. Fixed-time selection also
-// covers the secret BIP340 nonce hash (as well as public tweaks and ECDSA r).
-static void reduce_scalar(uint8_t out[32], const uint8_t in[32])
-{
-    uint8_t reduced[32];
-    unsigned int borrow = 0;
-    for (int i = 31; i >= 0; --i) {
-        unsigned int v = (unsigned int)in[i] - order[i] - borrow;
-        reduced[i] = v;
-        borrow = (v >> 8) & 1;
-    }
-    uint8_t mask = (uint8_t)(0 - borrow);
-    for (int i = 0; i < 32; ++i) {
-        out[i] = (in[i] & mask) | (reduced[i] & (uint8_t)~mask);
-    }
-    mem_clean(reduced, sizeof reduced);
-}
-
 static void require_buf_len(mp_obj_t obj, mp_buffer_info_t *buf, size_t len)
 {
     mp_get_buffer_raise(obj, buf, MP_BUFFER_READ);
@@ -50,7 +25,7 @@ static int nonce_tweak(uint8_t out[32], const uint8_t *Q, const uint8_t rho[32],
     memcpy(buf, Q, qlen);
     memcpy(buf + qlen, rho, 32);
     int ok = secp256k1_tagged_sha256(lib_ctx, out, (const uint8_t *)tag, strlen(tag), buf, qlen + 32);
-    reduce_scalar(out, out);
+    ngu_secp256k1_scalar_reduce(out, out);
     return ok;
 }
 
@@ -87,7 +62,7 @@ static int derive_schnorr(uint8_t q[32], const uint8_t sk[32], const uint8_t md[
     if (ok) {
         static const uint8_t algo[] = "BIP0340/nonce";
         ok = secp256k1_nonce_function_bip340(q, md, 32, d, pk, algo, sizeof(algo)-1, (void *)hc);
-        reduce_scalar(q, q);
+        ngu_secp256k1_scalar_reduce(q, q);
         ok = ok && secp256k1_ec_seckey_verify(lib_ctx, q);
     }
     mem_clean(d, sizeof d);
@@ -240,7 +215,7 @@ static mp_obj_t ae_verify(size_t n_args, const mp_obj_t *args)
         || !secp256k1_ec_pubkey_tweak_add(lib_ctx, &R, tweak)
         || !secp256k1_ec_pubkey_serialize(lib_ctx, encoded, &len, &R, SECP256K1_EC_COMPRESSED))
         return mp_const_false;
-    reduce_scalar(r, encoded + 1);
+    ngu_secp256k1_scalar_reduce(r, encoded + 1);
     mp_obj_sig_t *sig = MP_OBJ_TO_PTR(args[0]);
     secp256k1_ecdsa_recoverable_signature_serialize_compact(lib_ctx, compact, &recid, &sig->sig);
     if (memcmp(r, compact, 32)) return mp_const_false;

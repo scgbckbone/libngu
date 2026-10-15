@@ -45,4 +45,14 @@
 # include "src/secp256k1.c"
 # include "src/precomputed_ecmult.c"
 # include "src/precomputed_ecmult_gen.c"
+# include "sec_shared.h"
+
+// Keep access to secp's internal scalar API inside this translation unit.
+void ngu_secp256k1_scalar_reduce(unsigned char out[32], const unsigned char in[32])
+{
+    secp256k1_scalar scalar;
+    secp256k1_scalar_set_b32(&scalar, in, NULL);
+    secp256k1_scalar_get_b32(out, &scalar);
+    secp256k1_scalar_clear(&scalar);
+}
 #endif

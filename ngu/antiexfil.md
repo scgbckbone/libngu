@@ -4,11 +4,11 @@ Implements the two-round BIP draft `bip-antiexfil-s2c:9781494c`. Schnorr entry
 points are available when `NGU_INCL_SCHNORR=1`; ECDSA is always available.
 
 - `ngu.antiexfil.commit(key, digest, host_commitment)` returns compressed `Q` (33 bytes).
-- `commit_schnorr(key, digest, host_commitment)` returns even-y x-only `Q` (32 bytes).
-- `sign(key, digest, host_commitment, rho)` returns `(signature_object, Q)`.
-- `sign_schnorr(key, digest, host_commitment, rho)` returns `(signature64, Q)`.
-- `verify(signature_object, digest, pubkey_object, Q, rho)` returns a boolean.
-- `verify_schnorr(signature64, digest, xonly_pubkey_object, Q, rho)` returns a boolean.
+- `ngu.antiexfil.commit_schnorr(key, digest, host_commitment)` returns even-y x-only `Q` (32 bytes).
+- `ngu.antiexfil.sign(key, digest, host_commitment, rho)` returns `(signature_object, Q)`.
+- `ngu.antiexfil.sign_schnorr(key, digest, host_commitment, rho)` returns `(signature64, Q)`.
+- `ngu.antiexfil.verify(signature_object, digest, pubkey_object, Q, rho)` returns a boolean.
+- `ngu.antiexfil.verify_schnorr(signature64, digest, xonly_pubkey_object, Q, rho)` returns a boolean.
 
 `key` is a 32-byte secret or a `ngu.secp256k1.keypair`. `digest`,
 `host_commitment` and `rho` are each 32 bytes. Invalid signing inputs raise

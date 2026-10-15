@@ -8,6 +8,8 @@
 #include "secp256k1/include/secp256k1_preallocated.h"
 #include "secp256k1/include/secp256k1_musig.h"
 
+// Reduce a big-endian 32-byte integer modulo the group order. Buffers may alias.
+extern void ngu_secp256k1_scalar_reduce(unsigned char out[32], const unsigned char in[32]);
 
 // Shared context for all files in ngu. Never freed.
 // - big heavy shared object for all calls
