@@ -1,7 +1,6 @@
 // Two-round anti-exfil signing. Secret nonces never cross the Python boundary.
 #include "k1.h"
-#include "cifra/drbg.h"
-#include "cifra/sha2.h"
+#include <limits.h>
 #include "cifra/ext/handy.h"
 #include <string.h>
 
@@ -24,27 +23,20 @@ static int nonce_tweak(uint8_t out[32], const uint8_t *Q, const uint8_t rho[32],
     uint8_t buf[65];
     memcpy(buf, Q, qlen);
     memcpy(buf + qlen, rho, 32);
-    int ok = secp256k1_tagged_sha256(lib_ctx, out, (const uint8_t *)tag, strlen(tag), buf, qlen + 32);
-    ngu_secp256k1_scalar_reduce(out, out);
-    return ok;
+    // The secp tweak APIs reject hashes >= n; do not reduce the hash here.
+    return secp256k1_tagged_sha256(lib_ctx, out, (const uint8_t *)tag, strlen(tag), buf, qlen + 32);
 }
 
 static int derive_ecdsa(uint8_t q[32], const uint8_t sk[32], const uint8_t md[32], const uint8_t hc[32])
 {
-    // The BIP explicitly uses raw digest bytes, without bits2octets. The
-    // current libsecp default nonce function reduces md, so do not call it.
-    cf_hmac_drbg rng;
-    cf_hmac_drbg_init(&rng, &cf_sha256, sk, 32, md, 32, hc, 32);
-    int ok = 0;
-    while (!cf_hmac_drbg_needs_reseed(&rng)) {
-        cf_hmac_drbg_gen(&rng, q, 32);
-        if (secp256k1_ec_seckey_verify(lib_ctx, q)) {
-            ok = 1;
-            break;
-        }
+    // Match secp256k1-zkp's anti-exfil commitment derivation, including
+    // RFC6979 bits2octets reduction of the digest and its retry sequence.
+    for (unsigned int counter = 0; ; ++counter) {
+        if (!secp256k1_nonce_function_rfc6979(q, md, sk, NULL, (void *)hc, counter))
+            return 0;
+        if (secp256k1_ec_seckey_verify(lib_ctx, q)) return 1;
+        if (counter == UINT_MAX) return 0;
     }
-    mem_clean(&rng, sizeof rng);
-    return ok;
 }
 
 #if NGU_INCL_SCHNORR

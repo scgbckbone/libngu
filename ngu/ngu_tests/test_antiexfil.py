@@ -47,7 +47,8 @@ for vector in vectors:
         raises(ValueError, sign, sk, md, hc, rho[:31])
         raises(ValueError, verify, sig, md, pub, Q[:-1], rho)
         raises(TypeError, verify, sig, md, kp, Q, rho)
-        assert commit(sk, bytes(32), hc) != Q
+        changed_md = bytes([md[0] ^ 0x80]) + md[1:]
+        assert commit(sk, changed_md, hc) != Q
         assert commit(sk, md, bytes(32)) != Q
         # A valid ordinary signature must not pass the anti-exfil binding.
         plain = (ngu.secp256k1.sign_schnorr(sk, md, bytes(32)) if schnorr else
@@ -56,5 +57,17 @@ for vector in vectors:
     kp.clear()
     assert kp.privkey() == bytes(32)
     raises(ValueError, ngu.antiexfil.commit, kp, md, v["hc"])
+
+# RFC6979 bits2octets must agree for digest representatives modulo n.
+# These values are impractical to obtain as transaction hashes, so exercise
+# them directly at the API boundary.
+order = uh('fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141')
+order_plus_one = uh('fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364142')
+sk = bytes(31) + b'\x01'
+rho = b'\x21' * 32
+hc = ngu.hash.sha256t(b's2c/ecdsa/data', rho)
+for md, reduced in ((order, bytes(32)), (order_plus_one, sk)):
+    assert ngu.antiexfil.commit(sk, md, hc) == ngu.antiexfil.commit(sk, reduced, hc)
+    assert ngu.antiexfil.sign(sk, md, hc, rho)[0].to_bytes() == ngu.antiexfil.sign(sk, reduced, hc, rho)[0].to_bytes()
 
 print('PASS - anti-exfil BIP vectors, retries, and invalid transcripts')
